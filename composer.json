@@ -1,0 +1,32 @@
+{
+    "name": "hmennen90/php-vulkan",
+    "type": "php-ext",
+    "license": "MIT",
+    "description": "PHP Vulkan API bindings for 2D/3D graphics and GPU compute — built for PHPolygon engine",
+    "keywords": ["vulkan", "gpu", "graphics", "compute", "3d", "2d", "engine", "game"],
+    "homepage": "https://github.com/hmennen90/php-vulkan",
+    "authors": [
+        {
+            "name": "Hendrik Mennen",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.1"
+    },
+    "php-ext": {
+        "extension-name": "vulkan",
+        "configure-options": [
+            {
+                "name": "with-vulkan",
+                "description": "Path to the Vulkan SDK installation directory (auto-detected if not set)",
+                "needs-value": true
+            }
+        ],
+        "os-families-exclude": ["windows"]
+    },
+    "support": {
+        "issues": "https://github.com/hmennen90/php-vulkan/issues",
+        "source": "https://github.com/hmennen90/php-vulkan"
+    }
+}
