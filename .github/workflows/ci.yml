@@ -7,14 +7,13 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    name: PHP ${{ matrix.php }} — ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  linux:
+    name: PHP ${{ matrix.php }} — Linux
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4', '8.5']
-        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -27,22 +26,16 @@ jobs:
         env:
           phpts: nts
 
-      - name: Install Vulkan SDK (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Install Vulkan SDK
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev vulkan-tools
-
-      - name: Install Vulkan SDK (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install vulkan-headers vulkan-loader molten-vk
+          sudo apt-get install -y libvulkan-dev
 
       - name: Build extension
         run: |
           phpize
           ./configure --with-vulkan
-          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+          make -j$(nproc)
 
       - name: Verify extension loads
         run: php -d extension=modules/vulkan.so -m | grep vulkan
@@ -50,8 +43,132 @@ jobs:
       - name: Run phpinfo
         run: php -d extension=modules/vulkan.so -r "phpinfo(INFO_MODULES);" | grep -A5 "vulkan"
 
-      - name: Run device enumeration example
-        run: php -d extension=modules/vulkan.so examples/01_enumerate_devices.php || true
+      - name: Run examples (no GPU expected)
+        run: |
+          php -d extension=modules/vulkan.so examples/01_enumerate_devices.php || true
+          php -d extension=modules/vulkan.so examples/03_memory_info.php || true
 
-      - name: Run memory test example
-        run: php -d extension=modules/vulkan.so examples/03_memory_info.php || true
+  macos:
+    name: PHP ${{ matrix.php }} — macOS
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+        env:
+          phpts: nts
+
+      - name: Install Vulkan SDK
+        run: brew install vulkan-headers vulkan-loader molten-vk
+
+      - name: Build extension
+        run: |
+          phpize
+          ./configure --with-vulkan
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Verify extension loads
+        run: php -d extension=modules/vulkan.so -m | grep vulkan
+
+      - name: Run phpinfo
+        run: php -d extension=modules/vulkan.so -r "phpinfo(INFO_MODULES);" | grep -A5 "vulkan"
+
+      - name: Run examples
+        run: |
+          php -d extension=modules/vulkan.so examples/01_enumerate_devices.php || true
+          php -d extension=modules/vulkan.so examples/03_memory_info.php || true
+
+  windows:
+    name: PHP ${{ matrix.php }} — Windows (${{ matrix.arch }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+        arch: [x64]
+        ts: [nts]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulkan SDK
+        shell: pwsh
+        run: |
+          # Install Vulkan SDK via official installer (silent)
+          $sdkVersion = "1.4.304.1"
+          $installer = "$env:TEMP\vulkan-sdk.exe"
+          Write-Host "Downloading Vulkan SDK $sdkVersion..."
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/$sdkVersion/windows/VulkanSDK-$sdkVersion-Installer.exe" -OutFile $installer
+          Write-Host "Installing..."
+          Start-Process -FilePath $installer -ArgumentList "--accept-licenses --default-answer --confirm-command install" -Wait -NoNewWindow
+          $sdkPath = (Get-ChildItem "C:\VulkanSDK" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          Write-Host "Vulkan SDK installed at: $sdkPath"
+          echo "VULKAN_SDK=$sdkPath" >> $env:GITHUB_ENV
+
+      - name: Download PHP SDK and devpack
+        shell: pwsh
+        run: |
+          # Get PHP SDK (build tools)
+          Invoke-WebRequest -Uri "https://github.com/php/php-sdk-binary-tools/archive/refs/heads/master.zip" -OutFile "$env:TEMP\php-sdk.zip"
+          Expand-Archive "$env:TEMP\php-sdk.zip" -DestinationPath "C:\php-sdk"
+
+          # Get PHP devpack for the target version
+          $phpVer = "${{ matrix.php }}"
+          $ts = "${{ matrix.ts }}"
+          $arch = "${{ matrix.arch }}"
+          $vsVer = "vs16"
+          if ([version]$phpVer -ge [version]"8.4") { $vsVer = "vs17" }
+
+          # Find latest patch version from windows.php.net
+          $releasePage = Invoke-WebRequest -Uri "https://windows.php.net/downloads/releases/" -UseBasicParsing
+          $pattern = "php-devel-pack-($phpVer\.\d+)-${ts}-Win32-${vsVer}-${arch}\.zip"
+          $match = [regex]::Match($releasePage.Content, $pattern)
+
+          if ($match.Success) {
+            $devpackFile = $match.Value
+            $fullVer = $match.Groups[1].Value
+            Write-Host "Found devpack: $devpackFile (PHP $fullVer)"
+            Invoke-WebRequest -Uri "https://windows.php.net/downloads/releases/$devpackFile" -OutFile "$env:TEMP\php-devpack.zip"
+          } else {
+            # Try QA releases
+            $qaPage = Invoke-WebRequest -Uri "https://windows.php.net/downloads/qa/" -UseBasicParsing
+            $match = [regex]::Match($qaPage.Content, $pattern)
+            if ($match.Success) {
+              $devpackFile = $match.Value
+              Write-Host "Found QA devpack: $devpackFile"
+              Invoke-WebRequest -Uri "https://windows.php.net/downloads/qa/$devpackFile" -OutFile "$env:TEMP\php-devpack.zip"
+            } else {
+              Write-Host "::warning::No devpack found for PHP $phpVer — skipping Windows build"
+              echo "SKIP_BUILD=1" >> $env:GITHUB_ENV
+              exit 0
+            }
+          }
+          Expand-Archive "$env:TEMP\php-devpack.zip" -DestinationPath "C:\php-devpack"
+          $devpackDir = (Get-ChildItem "C:\php-devpack" -Directory | Select-Object -First 1).FullName
+          echo "PHP_DEVPACK=$devpackDir" >> $env:GITHUB_ENV
+
+      - name: Build extension
+        if: env.SKIP_BUILD != '1'
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cd /d "%PHP_DEVPACK%"
+          phpize.bat "%GITHUB_WORKSPACE%"
+          cd /d "%GITHUB_WORKSPACE%"
+          "%PHP_DEVPACK%\configure.bat" --with-vulkan="%VULKAN_SDK%" --with-php-build="%PHP_DEVPACK%"
+          nmake
+
+      - name: Verify extension loads
+        if: env.SKIP_BUILD != '1'
+        shell: cmd
+        run: |
+          php -d extension=php_vulkan.dll -m | findstr vulkan

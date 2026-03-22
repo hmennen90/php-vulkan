@@ -23,7 +23,7 @@
                 "needs-value": true
             }
         ],
-        "os-families-exclude": ["windows"]
+        "support-zts": false
     },
     "support": {
         "issues": "https://github.com/hmennen90/php-vulkan/issues",

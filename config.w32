@@ -1,0 +1,51 @@
+// config.w32 for extension vulkan
+
+ARG_WITH("vulkan", "for Vulkan support", "no");
+
+if (PHP_VULKAN != "no") {
+    var vulkan_sdk = PHP_VULKAN;
+
+    // Try environment variable if no path given
+    if (vulkan_sdk == "yes") {
+        vulkan_sdk = WshShell.Environment("Process").Item("VULKAN_SDK");
+        if (!vulkan_sdk) {
+            vulkan_sdk = WshShell.Environment("Process").Item("VK_SDK_PATH");
+        }
+    }
+
+    if (vulkan_sdk && CHECK_HEADER_ADD_INCLUDE("vulkan/vulkan.h", "CFLAGS_VULKAN", vulkan_sdk + "\\Include") &&
+        CHECK_LIB("vulkan-1.lib", "vulkan", vulkan_sdk + "\\Lib")) {
+
+        EXTENSION("vulkan", " \
+            src\\vulkan.c \
+            src\\vk_instance.c \
+            src\\vk_physical_device.c \
+            src\\vk_device.c \
+            src\\vk_queue.c \
+            src\\vk_buffer.c \
+            src\\vk_device_memory.c \
+            src\\vk_command_pool.c \
+            src\\vk_command_buffer.c \
+            src\\vk_shader_module.c \
+            src\\vk_descriptor_set_layout.c \
+            src\\vk_descriptor_pool.c \
+            src\\vk_descriptor_set.c \
+            src\\vk_pipeline_layout.c \
+            src\\vk_pipeline.c \
+            src\\vk_render_pass.c \
+            src\\vk_framebuffer.c \
+            src\\vk_image.c \
+            src\\vk_image_view.c \
+            src\\vk_sampler.c \
+            src\\vk_fence.c \
+            src\\vk_semaphore.c \
+            src\\vk_swapchain.c \
+            src\\vk_surface.c \
+            src\\vk_enums.c \
+        ", true);
+
+        AC_DEFINE("HAVE_VULKAN", 1, "Vulkan support");
+    } else {
+        WARNING("vulkan not enabled; Vulkan SDK not found");
+    }
+}
