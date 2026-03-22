@@ -552,6 +552,178 @@ PHP_METHOD(VkCommandBuffer, pushConstants) {
         (VkShaderStageFlags)stage_flags, (uint32_t)offset, (uint32_t)ZSTR_LEN(data), ZSTR_VAL(data));
 }
 
+/* Vk\CommandBuffer::copyImageToBuffer(Vk\Image $image, int $imageLayout,
+ *     Vk\Buffer $buffer, int $width, int $height,
+ *     int $bufferOffset = 0, int $imageOffsetX = 0, int $imageOffsetY = 0,
+ *     int $aspectMask = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_copyImageToBuffer, 0, 5, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, image, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, imageLayout, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, buffer, Vk\\Buffer, 0)
+    ZEND_ARG_TYPE_INFO(0, width, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, height, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, bufferOffset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, imageOffsetX, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, imageOffsetY, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, aspectMask, IS_LONG, 0, "1")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, copyImageToBuffer) {
+    zval *image_zval, *buffer_zval;
+    zend_long image_layout, width, height;
+    zend_long buffer_offset = 0, image_offset_x = 0, image_offset_y = 0;
+    zend_long aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    ZEND_PARSE_PARAMETERS_START(5, 9)
+        Z_PARAM_OBJECT_OF_CLASS(image_zval, vk_image_ce)
+        Z_PARAM_LONG(image_layout)
+        Z_PARAM_OBJECT_OF_CLASS(buffer_zval, vk_buffer_ce)
+        Z_PARAM_LONG(width)
+        Z_PARAM_LONG(height)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(buffer_offset)
+        Z_PARAM_LONG(image_offset_x)
+        Z_PARAM_LONG(image_offset_y)
+        Z_PARAM_LONG(aspect_mask)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *img = VK_OBJ(vk_image_object, Z_OBJ_P(image_zval));
+    vk_buffer_object *buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(buffer_zval));
+
+    VkBufferImageCopy region = {
+        .bufferOffset = (VkDeviceSize)buffer_offset,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = {
+            .aspectMask = (VkImageAspectFlags)aspect_mask,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+        .imageOffset = {(int32_t)image_offset_x, (int32_t)image_offset_y, 0},
+        .imageExtent = {(uint32_t)width, (uint32_t)height, 1},
+    };
+
+    vkCmdCopyImageToBuffer(intern->command_buffer, img->image,
+        (VkImageLayout)image_layout, buf->buffer, 1, &region);
+}
+
+/* Vk\CommandBuffer::copyBufferToImage(Vk\Buffer $buffer, Vk\Image $image,
+ *     int $imageLayout, int $width, int $height,
+ *     int $bufferOffset = 0, int $imageOffsetX = 0, int $imageOffsetY = 0,
+ *     int $aspectMask = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_copyBufferToImage, 0, 5, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, buffer, Vk\\Buffer, 0)
+    ZEND_ARG_OBJ_INFO(0, image, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, imageLayout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, width, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, height, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, bufferOffset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, imageOffsetX, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, imageOffsetY, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, aspectMask, IS_LONG, 0, "1")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, copyBufferToImage) {
+    zval *buffer_zval, *image_zval;
+    zend_long image_layout, width, height;
+    zend_long buffer_offset = 0, image_offset_x = 0, image_offset_y = 0;
+    zend_long aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    ZEND_PARSE_PARAMETERS_START(5, 9)
+        Z_PARAM_OBJECT_OF_CLASS(buffer_zval, vk_buffer_ce)
+        Z_PARAM_OBJECT_OF_CLASS(image_zval, vk_image_ce)
+        Z_PARAM_LONG(image_layout)
+        Z_PARAM_LONG(width)
+        Z_PARAM_LONG(height)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(buffer_offset)
+        Z_PARAM_LONG(image_offset_x)
+        Z_PARAM_LONG(image_offset_y)
+        Z_PARAM_LONG(aspect_mask)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_buffer_object *buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(buffer_zval));
+    vk_image_object *img = VK_OBJ(vk_image_object, Z_OBJ_P(image_zval));
+
+    VkBufferImageCopy region = {
+        .bufferOffset = (VkDeviceSize)buffer_offset,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = {
+            .aspectMask = (VkImageAspectFlags)aspect_mask,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+        .imageOffset = {(int32_t)image_offset_x, (int32_t)image_offset_y, 0},
+        .imageExtent = {(uint32_t)width, (uint32_t)height, 1},
+    };
+
+    vkCmdCopyBufferToImage(intern->command_buffer, buf->buffer, img->image,
+        (VkImageLayout)image_layout, 1, &region);
+}
+
+/* Vk\CommandBuffer::imageMemoryBarrier(Vk\Image $image, int $oldLayout, int $newLayout,
+ *     int $srcAccessMask, int $dstAccessMask, int $srcStage, int $dstStage,
+ *     int $aspectMask = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_imageMemoryBarrier, 0, 7, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, image, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, oldLayout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, newLayout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcAccessMask, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstAccessMask, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcStage, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstStage, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, aspectMask, IS_LONG, 0, "1")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, imageMemoryBarrier) {
+    zval *image_zval;
+    zend_long old_layout, new_layout, src_access, dst_access, src_stage, dst_stage;
+    zend_long aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    ZEND_PARSE_PARAMETERS_START(7, 8)
+        Z_PARAM_OBJECT_OF_CLASS(image_zval, vk_image_ce)
+        Z_PARAM_LONG(old_layout)
+        Z_PARAM_LONG(new_layout)
+        Z_PARAM_LONG(src_access)
+        Z_PARAM_LONG(dst_access)
+        Z_PARAM_LONG(src_stage)
+        Z_PARAM_LONG(dst_stage)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(aspect_mask)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *img = VK_OBJ(vk_image_object, Z_OBJ_P(image_zval));
+
+    VkImageMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .oldLayout = (VkImageLayout)old_layout,
+        .newLayout = (VkImageLayout)new_layout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = img->image,
+        .subresourceRange = {
+            .aspectMask = (VkImageAspectFlags)aspect_mask,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+        .srcAccessMask = (VkAccessFlags)src_access,
+        .dstAccessMask = (VkAccessFlags)dst_access,
+    };
+
+    vkCmdPipelineBarrier(intern->command_buffer,
+        (VkPipelineStageFlags)src_stage,
+        (VkPipelineStageFlags)dst_stage,
+        0, 0, NULL, 0, NULL, 1, &barrier);
+}
+
 static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, begin,              arginfo_vk_cb_begin,              ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, end,                arginfo_vk_cb_end,                ZEND_ACC_PUBLIC)
@@ -570,6 +742,9 @@ static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, setScissor,         arginfo_vk_cb_setScissor,         ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, pipelineBarrier,    arginfo_vk_cb_pipelineBarrier,    ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, pushConstants,      arginfo_vk_cb_pushConstants,      ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, copyImageToBuffer,  arginfo_vk_cb_copyImageToBuffer,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, copyBufferToImage,  arginfo_vk_cb_copyBufferToImage,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, imageMemoryBarrier, arginfo_vk_cb_imageMemoryBarrier, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
