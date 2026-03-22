@@ -5,6 +5,7 @@
 *.so
 *.dylib
 *.dll
+*.dep
 .libs/
 modules/
 build/
