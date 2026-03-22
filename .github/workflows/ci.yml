@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: PHP ${{ matrix.php }} — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4', '8.5']
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+        env:
+          phpts: nts
+
+      - name: Install Vulkan SDK (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev vulkan-tools
+
+      - name: Install Vulkan SDK (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install vulkan-headers vulkan-loader molten-vk
+
+      - name: Build extension
+        run: |
+          phpize
+          ./configure --with-vulkan
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Verify extension loads
+        run: php -d extension=modules/vulkan.so -m | grep vulkan
+
+      - name: Run phpinfo
+        run: php -d extension=modules/vulkan.so -r "phpinfo(INFO_MODULES);" | grep -A5 "vulkan"
+
+      - name: Run device enumeration example
+        run: php -d extension=modules/vulkan.so examples/01_enumerate_devices.php || true
+
+      - name: Run memory test example
+        run: php -d extension=modules/vulkan.so examples/03_memory_info.php || true
