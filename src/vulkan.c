@@ -80,7 +80,7 @@ PHP_MINIT_FUNCTION(vulkan) {
     /* Register exception class: Vk\VulkanException extends \RuntimeException */
     zend_class_entry ce;
     INIT_NS_CLASS_ENTRY(ce, "Vk", "VulkanException", NULL);
-    vk_vulkan_exception_ce = zend_register_internal_class_ex(&ce, zend_ce_runtime_exception);
+    vk_vulkan_exception_ce = zend_register_internal_class_ex(&ce, spl_ce_RuntimeException);
 
     /* Register all Vulkan wrapper classes */
     php_vk_instance_register();
