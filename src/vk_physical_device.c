@@ -220,15 +220,91 @@ PHP_METHOD(VkPhysicalDevice, getProperties) {
 /*  Method table                                                       */
 /* ------------------------------------------------------------------ */
 
+/* Vk\PhysicalDevice::getFormatProperties(int $format): array */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_pd_getFormatProperties, 0, 1, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO(0, format, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkPhysicalDevice, getFormatProperties) {
+    zend_long format;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_LONG(format)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_physical_device_object *intern = VK_OBJ(vk_physical_device_object, Z_OBJ_P(ZEND_THIS));
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(intern->physical_device, (VkFormat)format, &props);
+
+    array_init(return_value);
+    add_assoc_long(return_value, "linearTilingFeatures", (zend_long)props.linearTilingFeatures);
+    add_assoc_long(return_value, "optimalTilingFeatures", (zend_long)props.optimalTilingFeatures);
+    add_assoc_long(return_value, "bufferFeatures", (zend_long)props.bufferFeatures);
+}
+
+/* Vk\PhysicalDevice::enumerateExtensions(): array */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_pd_enumerateExtensions, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkPhysicalDevice, enumerateExtensions) {
+    ZEND_PARSE_PARAMETERS_NONE();
+    vk_physical_device_object *intern = VK_OBJ(vk_physical_device_object, Z_OBJ_P(ZEND_THIS));
+
+    uint32_t count = 0;
+    vkEnumerateDeviceExtensionProperties(intern->physical_device, NULL, &count, NULL);
+    VkExtensionProperties *exts = ecalloc(count, sizeof(VkExtensionProperties));
+    vkEnumerateDeviceExtensionProperties(intern->physical_device, NULL, &count, exts);
+
+    array_init_size(return_value, count);
+    for (uint32_t i = 0; i < count; i++) {
+        zval ext;
+        array_init(&ext);
+        add_assoc_string(&ext, "name", exts[i].extensionName);
+        add_assoc_long(&ext, "specVersion", exts[i].specVersion);
+        add_next_index_zval(return_value, &ext);
+    }
+    efree(exts);
+}
+
+/* Vk\PhysicalDevice::getSurfaceSupport(int $queueFamilyIndex, Vk\Surface $surface): bool */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_pd_getSurfaceSupport, 0, 2, _IS_BOOL, 0)
+    ZEND_ARG_TYPE_INFO(0, queueFamilyIndex, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, surface, Vk\\Surface, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkPhysicalDevice, getSurfaceSupport) {
+    zend_long queue_family_index;
+    zval *surface_zval;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(queue_family_index)
+        Z_PARAM_OBJECT_OF_CLASS(surface_zval, vk_surface_ce)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_physical_device_object *intern = VK_OBJ(vk_physical_device_object, Z_OBJ_P(ZEND_THIS));
+    vk_surface_object *surface = VK_OBJ(vk_surface_object, Z_OBJ_P(surface_zval));
+
+    VkBool32 supported = VK_FALSE;
+    VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(
+        intern->physical_device, (uint32_t)queue_family_index, surface->surface, &supported);
+    if (result != VK_SUCCESS) {
+        vk_throw_exception(result, "Failed to query surface support");
+        return;
+    }
+    RETURN_BOOL(supported == VK_TRUE);
+}
+
 static const zend_function_entry vk_physical_device_methods[] = {
-    PHP_ME(VkPhysicalDevice, getName,            arginfo_vk_pd_getName,            ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getType,            arginfo_vk_pd_getType,            ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getTypeName,        arginfo_vk_pd_getTypeName,        ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getApiVersion,      arginfo_vk_pd_getApiVersion,      ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getDriverVersion,   arginfo_vk_pd_getDriverVersion,   ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getQueueFamilies,   arginfo_vk_pd_getQueueFamilies,   ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getMemoryProperties, arginfo_vk_pd_getMemoryProperties, ZEND_ACC_PUBLIC)
-    PHP_ME(VkPhysicalDevice, getProperties,      arginfo_vk_pd_getProperties,      ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getName,              arginfo_vk_pd_getName,              ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getType,              arginfo_vk_pd_getType,              ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getTypeName,          arginfo_vk_pd_getTypeName,          ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getApiVersion,        arginfo_vk_pd_getApiVersion,        ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getDriverVersion,     arginfo_vk_pd_getDriverVersion,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getQueueFamilies,     arginfo_vk_pd_getQueueFamilies,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getMemoryProperties,  arginfo_vk_pd_getMemoryProperties,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getProperties,        arginfo_vk_pd_getProperties,        ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getFormatProperties,  arginfo_vk_pd_getFormatProperties,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, enumerateExtensions,  arginfo_vk_pd_enumerateExtensions,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkPhysicalDevice, getSurfaceSupport,    arginfo_vk_pd_getSurfaceSupport,    ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

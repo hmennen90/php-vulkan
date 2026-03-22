@@ -221,10 +221,60 @@ PHP_METHOD(VkInstance, getVersion) {
 /*  Method table                                                       */
 /* ------------------------------------------------------------------ */
 
+/* Vk\Instance::enumerateExtensions(): array (static) */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_instance_enumerateExtensions, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkInstance, enumerateExtensions) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    uint32_t count = 0;
+    vkEnumerateInstanceExtensionProperties(NULL, &count, NULL);
+    VkExtensionProperties *exts = ecalloc(count, sizeof(VkExtensionProperties));
+    vkEnumerateInstanceExtensionProperties(NULL, &count, exts);
+
+    array_init_size(return_value, count);
+    for (uint32_t i = 0; i < count; i++) {
+        zval ext;
+        array_init(&ext);
+        add_assoc_string(&ext, "name", exts[i].extensionName);
+        add_assoc_long(&ext, "specVersion", exts[i].specVersion);
+        add_next_index_zval(return_value, &ext);
+    }
+    efree(exts);
+}
+
+/* Vk\Instance::enumerateLayers(): array (static) */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_instance_enumerateLayers, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkInstance, enumerateLayers) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    uint32_t count = 0;
+    vkEnumerateInstanceLayerProperties(&count, NULL);
+    VkLayerProperties *layers = ecalloc(count, sizeof(VkLayerProperties));
+    vkEnumerateInstanceLayerProperties(&count, layers);
+
+    array_init_size(return_value, count);
+    for (uint32_t i = 0; i < count; i++) {
+        zval layer;
+        array_init(&layer);
+        add_assoc_string(&layer, "name", layers[i].layerName);
+        add_assoc_string(&layer, "description", layers[i].description);
+        add_assoc_long(&layer, "specVersion", layers[i].specVersion);
+        add_assoc_long(&layer, "implementationVersion", layers[i].implementationVersion);
+        add_next_index_zval(return_value, &layer);
+    }
+    efree(layers);
+}
+
 static const zend_function_entry vk_instance_methods[] = {
-    PHP_ME(VkInstance, __construct,       arginfo_vk_instance___construct,       ZEND_ACC_PUBLIC)
-    PHP_ME(VkInstance, getPhysicalDevices, arginfo_vk_instance_getPhysicalDevices, ZEND_ACC_PUBLIC)
-    PHP_ME(VkInstance, getVersion,        arginfo_vk_instance_getVersion,        ZEND_ACC_PUBLIC)
+    PHP_ME(VkInstance, __construct,          arginfo_vk_instance___construct,          ZEND_ACC_PUBLIC)
+    PHP_ME(VkInstance, getPhysicalDevices,   arginfo_vk_instance_getPhysicalDevices,   ZEND_ACC_PUBLIC)
+    PHP_ME(VkInstance, getVersion,           arginfo_vk_instance_getVersion,           ZEND_ACC_PUBLIC)
+    PHP_ME(VkInstance, enumerateExtensions,  arginfo_vk_instance_enumerateExtensions,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(VkInstance, enumerateLayers,      arginfo_vk_instance_enumerateLayers,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 

@@ -151,8 +151,85 @@ PHP_METHOD(VkQueue, getFamilyIndex) {
     RETURN_LONG((zend_long)intern->family_index);
 }
 
+/* Vk\Queue::present(array<Vk\Swapchain> $swapchains, array<int> $imageIndices,
+ *                    array<Vk\Semaphore> $waitSemaphores = []): int */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_queue_present, 0, 2, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, swapchains, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO(0, imageIndices, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO(0, waitSemaphores, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkQueue, present) {
+    HashTable *swapchains, *image_indices;
+    HashTable *wait_sems = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_ARRAY_HT(swapchains)
+        Z_PARAM_ARRAY_HT(image_indices)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT(wait_sems)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_queue_object *intern = VK_OBJ(vk_queue_object, Z_OBJ_P(ZEND_THIS));
+
+    /* Swapchains */
+    uint32_t sc_count = zend_hash_num_elements(swapchains);
+    VkSwapchainKHR *sc_handles = ecalloc(sc_count, sizeof(VkSwapchainKHR));
+    zval *zv;
+    uint32_t idx = 0;
+    ZEND_HASH_FOREACH_VAL(swapchains, zv) {
+        if (Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_swapchain_ce)) {
+            vk_swapchain_object *sc = VK_OBJ(vk_swapchain_object, Z_OBJ_P(zv));
+            sc_handles[idx++] = sc->swapchain;
+        }
+    } ZEND_HASH_FOREACH_END();
+    sc_count = idx;
+
+    /* Image indices */
+    uint32_t *indices = ecalloc(sc_count, sizeof(uint32_t));
+    idx = 0;
+    ZEND_HASH_FOREACH_VAL(image_indices, zv) {
+        if (idx < sc_count) {
+            indices[idx++] = (uint32_t)zval_get_long(zv);
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    /* Wait semaphores */
+    uint32_t wait_count = wait_sems ? zend_hash_num_elements(wait_sems) : 0;
+    VkSemaphore *wait_sem_handles = NULL;
+    if (wait_count > 0) {
+        wait_sem_handles = ecalloc(wait_count, sizeof(VkSemaphore));
+        uint32_t wi = 0;
+        ZEND_HASH_FOREACH_VAL(wait_sems, zv) {
+            if (Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_semaphore_ce)) {
+                vk_semaphore_object *s = VK_OBJ(vk_semaphore_object, Z_OBJ_P(zv));
+                wait_sem_handles[wi++] = s->semaphore;
+            }
+        } ZEND_HASH_FOREACH_END();
+        wait_count = wi;
+    }
+
+    VkPresentInfoKHR present_info = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = wait_count,
+        .pWaitSemaphores = wait_sem_handles,
+        .swapchainCount = sc_count,
+        .pSwapchains = sc_handles,
+        .pImageIndices = indices,
+    };
+
+    VkResult result = vkQueuePresentKHR(intern->queue, &present_info);
+
+    efree(sc_handles);
+    efree(indices);
+    if (wait_sem_handles) efree(wait_sem_handles);
+
+    RETURN_LONG((zend_long)result);
+}
+
 static const zend_function_entry vk_queue_methods[] = {
     PHP_ME(VkQueue, submit,         arginfo_vk_queue_submit,         ZEND_ACC_PUBLIC)
+    PHP_ME(VkQueue, present,        arginfo_vk_queue_present,        ZEND_ACC_PUBLIC)
     PHP_ME(VkQueue, waitIdle,       arginfo_vk_queue_waitIdle,       ZEND_ACC_PUBLIC)
     PHP_ME(VkQueue, getFamilyIndex, arginfo_vk_queue_getFamilyIndex, ZEND_ACC_PUBLIC)
     PHP_FE_END

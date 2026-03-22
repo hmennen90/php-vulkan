@@ -169,12 +169,78 @@ PHP_METHOD(VkDeviceMemory, read) {
     RETURN_STRINGL((char *)intern->mapped + offset, size);
 }
 
+/* Vk\DeviceMemory::flush(int $offset = 0, ?int $size = null): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_device_memory_flush, 0, 0, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, size, IS_LONG, 1, "null")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkDeviceMemory, flush) {
+    zend_long offset = 0, size_arg = 0;
+    zend_bool size_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG_OR_NULL(size_arg, size_is_null)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_device_memory_object *intern = VK_OBJ(vk_device_memory_object, Z_OBJ_P(ZEND_THIS));
+    vk_device_object *dev = VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval);
+
+    VkMappedMemoryRange range = {
+        .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        .memory = intern->memory,
+        .offset = (VkDeviceSize)offset,
+        .size = size_is_null ? VK_WHOLE_SIZE : (VkDeviceSize)size_arg,
+    };
+
+    VkResult result = vkFlushMappedMemoryRanges(dev->device, 1, &range);
+    if (result != VK_SUCCESS) {
+        vk_throw_exception(result, "Failed to flush mapped memory");
+    }
+}
+
+/* Vk\DeviceMemory::invalidate(int $offset = 0, ?int $size = null): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_device_memory_invalidate, 0, 0, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, size, IS_LONG, 1, "null")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkDeviceMemory, invalidate) {
+    zend_long offset = 0, size_arg = 0;
+    zend_bool size_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG_OR_NULL(size_arg, size_is_null)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_device_memory_object *intern = VK_OBJ(vk_device_memory_object, Z_OBJ_P(ZEND_THIS));
+    vk_device_object *dev = VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval);
+
+    VkMappedMemoryRange range = {
+        .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        .memory = intern->memory,
+        .offset = (VkDeviceSize)offset,
+        .size = size_is_null ? VK_WHOLE_SIZE : (VkDeviceSize)size_arg,
+    };
+
+    VkResult result = vkInvalidateMappedMemoryRanges(dev->device, 1, &range);
+    if (result != VK_SUCCESS) {
+        vk_throw_exception(result, "Failed to invalidate mapped memory");
+    }
+}
+
 static const zend_function_entry vk_device_memory_methods[] = {
     PHP_ME(VkDeviceMemory, __construct, arginfo_vk_device_memory___construct, ZEND_ACC_PUBLIC)
     PHP_ME(VkDeviceMemory, map,         arginfo_vk_device_memory_map,         ZEND_ACC_PUBLIC)
     PHP_ME(VkDeviceMemory, unmap,       arginfo_vk_device_memory_unmap,       ZEND_ACC_PUBLIC)
     PHP_ME(VkDeviceMemory, write,       arginfo_vk_device_memory_write,       ZEND_ACC_PUBLIC)
     PHP_ME(VkDeviceMemory, read,        arginfo_vk_device_memory_read,        ZEND_ACC_PUBLIC)
+    PHP_ME(VkDeviceMemory, flush,       arginfo_vk_device_memory_flush,       ZEND_ACC_PUBLIC)
+    PHP_ME(VkDeviceMemory, invalidate,  arginfo_vk_device_memory_invalidate,  ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

@@ -724,6 +724,241 @@ PHP_METHOD(VkCommandBuffer, imageMemoryBarrier) {
         0, 0, NULL, 0, NULL, 1, &barrier);
 }
 
+/* Vk\CommandBuffer::blitImage(Vk\Image $srcImage, int $srcLayout,
+ *     Vk\Image $dstImage, int $dstLayout,
+ *     int $srcX0, int $srcY0, int $srcX1, int $srcY1,
+ *     int $dstX0, int $dstY0, int $dstX1, int $dstY1,
+ *     int $filter = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_blitImage, 0, 12, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, srcImage, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, srcLayout, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, dstImage, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, dstLayout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcX0, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcY0, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcX1, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, srcY1, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstX0, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstY0, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstX1, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, dstY1, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, filter, IS_LONG, 0, "1")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, blitImage) {
+    zval *src_zval, *dst_zval;
+    zend_long src_layout, dst_layout;
+    zend_long sx0, sy0, sx1, sy1, dx0, dy0, dx1, dy1;
+    zend_long filter = VK_FILTER_LINEAR;
+
+    ZEND_PARSE_PARAMETERS_START(12, 13)
+        Z_PARAM_OBJECT_OF_CLASS(src_zval, vk_image_ce)
+        Z_PARAM_LONG(src_layout)
+        Z_PARAM_OBJECT_OF_CLASS(dst_zval, vk_image_ce)
+        Z_PARAM_LONG(dst_layout)
+        Z_PARAM_LONG(sx0) Z_PARAM_LONG(sy0) Z_PARAM_LONG(sx1) Z_PARAM_LONG(sy1)
+        Z_PARAM_LONG(dx0) Z_PARAM_LONG(dy0) Z_PARAM_LONG(dx1) Z_PARAM_LONG(dy1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(filter)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *src = VK_OBJ(vk_image_object, Z_OBJ_P(src_zval));
+    vk_image_object *dst = VK_OBJ(vk_image_object, Z_OBJ_P(dst_zval));
+
+    VkImageBlit region = {
+        .srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+        .srcOffsets = {{(int32_t)sx0, (int32_t)sy0, 0}, {(int32_t)sx1, (int32_t)sy1, 1}},
+        .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+        .dstOffsets = {{(int32_t)dx0, (int32_t)dy0, 0}, {(int32_t)dx1, (int32_t)dy1, 1}},
+    };
+
+    vkCmdBlitImage(intern->command_buffer,
+        src->image, (VkImageLayout)src_layout,
+        dst->image, (VkImageLayout)dst_layout,
+        1, &region, (VkFilter)filter);
+}
+
+/* Vk\CommandBuffer::clearColorImage(Vk\Image $image, int $layout,
+ *     float $r = 0, float $g = 0, float $b = 0, float $a = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_clearColorImage, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, image, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, layout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, r, IS_DOUBLE, 0, "0.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, g, IS_DOUBLE, 0, "0.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, b, IS_DOUBLE, 0, "0.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, a, IS_DOUBLE, 0, "1.0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, clearColorImage) {
+    zval *image_zval;
+    zend_long layout;
+    double r = 0, g = 0, b = 0, a = 1;
+
+    ZEND_PARSE_PARAMETERS_START(2, 6)
+        Z_PARAM_OBJECT_OF_CLASS(image_zval, vk_image_ce)
+        Z_PARAM_LONG(layout)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(r) Z_PARAM_DOUBLE(g) Z_PARAM_DOUBLE(b) Z_PARAM_DOUBLE(a)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *img = VK_OBJ(vk_image_object, Z_OBJ_P(image_zval));
+
+    VkClearColorValue color = {.float32 = {(float)r, (float)g, (float)b, (float)a}};
+    VkImageSubresourceRange range = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+    vkCmdClearColorImage(intern->command_buffer, img->image,
+        (VkImageLayout)layout, &color, 1, &range);
+}
+
+/* Vk\CommandBuffer::clearDepthStencilImage(Vk\Image $image, int $layout,
+ *     float $depth = 1.0, int $stencil = 0): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_clearDepthStencilImage, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, image, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, layout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, depth, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, stencil, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, clearDepthStencilImage) {
+    zval *image_zval;
+    zend_long layout;
+    double depth = 1.0;
+    zend_long stencil = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_OBJECT_OF_CLASS(image_zval, vk_image_ce)
+        Z_PARAM_LONG(layout)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(depth)
+        Z_PARAM_LONG(stencil)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *img = VK_OBJ(vk_image_object, Z_OBJ_P(image_zval));
+
+    VkClearDepthStencilValue ds = {.depth = (float)depth, .stencil = (uint32_t)stencil};
+    VkImageSubresourceRange range = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1};
+
+    vkCmdClearDepthStencilImage(intern->command_buffer, img->image,
+        (VkImageLayout)layout, &ds, 1, &range);
+}
+
+/* Vk\CommandBuffer::copyImage(Vk\Image $src, int $srcLayout,
+ *     Vk\Image $dst, int $dstLayout, int $width, int $height,
+ *     int $srcX = 0, int $srcY = 0, int $dstX = 0, int $dstY = 0): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_copyImage, 0, 6, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, src, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, srcLayout, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, dst, Vk\\Image, 0)
+    ZEND_ARG_TYPE_INFO(0, dstLayout, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, width, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, height, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, srcX, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, srcY, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, dstX, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, dstY, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, copyImage) {
+    zval *src_zval, *dst_zval;
+    zend_long src_layout, dst_layout, width, height;
+    zend_long src_x = 0, src_y = 0, dst_x = 0, dst_y = 0;
+
+    ZEND_PARSE_PARAMETERS_START(6, 10)
+        Z_PARAM_OBJECT_OF_CLASS(src_zval, vk_image_ce)
+        Z_PARAM_LONG(src_layout)
+        Z_PARAM_OBJECT_OF_CLASS(dst_zval, vk_image_ce)
+        Z_PARAM_LONG(dst_layout)
+        Z_PARAM_LONG(width)
+        Z_PARAM_LONG(height)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(src_x) Z_PARAM_LONG(src_y)
+        Z_PARAM_LONG(dst_x) Z_PARAM_LONG(dst_y)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_image_object *src = VK_OBJ(vk_image_object, Z_OBJ_P(src_zval));
+    vk_image_object *dst = VK_OBJ(vk_image_object, Z_OBJ_P(dst_zval));
+
+    VkImageCopy region = {
+        .srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+        .srcOffset = {(int32_t)src_x, (int32_t)src_y, 0},
+        .dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+        .dstOffset = {(int32_t)dst_x, (int32_t)dst_y, 0},
+        .extent = {(uint32_t)width, (uint32_t)height, 1},
+    };
+
+    vkCmdCopyImage(intern->command_buffer,
+        src->image, (VkImageLayout)src_layout,
+        dst->image, (VkImageLayout)dst_layout,
+        1, &region);
+}
+
+/* Vk\CommandBuffer::fillBuffer(Vk\Buffer $buffer, int $data,
+ *     int $offset = 0, ?int $size = null): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_fillBuffer, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, buffer, Vk\\Buffer, 0)
+    ZEND_ARG_TYPE_INFO(0, data, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, size, IS_LONG, 1, "null")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, fillBuffer) {
+    zval *buffer_zval;
+    zend_long data, offset = 0;
+    zend_long size_arg = 0;
+    zend_bool size_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(2, 4)
+        Z_PARAM_OBJECT_OF_CLASS(buffer_zval, vk_buffer_ce)
+        Z_PARAM_LONG(data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG_OR_NULL(size_arg, size_is_null)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_buffer_object *buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(buffer_zval));
+
+    VkDeviceSize fill_size = size_is_null ? VK_WHOLE_SIZE : (VkDeviceSize)size_arg;
+    vkCmdFillBuffer(intern->command_buffer, buf->buffer,
+        (VkDeviceSize)offset, fill_size, (uint32_t)data);
+}
+
+/* Vk\CommandBuffer::updateBuffer(Vk\Buffer $buffer, string $data, int $offset = 0): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_updateBuffer, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, buffer, Vk\\Buffer, 0)
+    ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, updateBuffer) {
+    zval *buffer_zval;
+    zend_string *data;
+    zend_long offset = 0;
+
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_OBJECT_OF_CLASS(buffer_zval, vk_buffer_ce)
+        Z_PARAM_STR(data)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_buffer_object *buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(buffer_zval));
+
+    if (ZSTR_LEN(data) > 65536) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "updateBuffer data must be <= 65536 bytes", 0);
+        return;
+    }
+
+    vkCmdUpdateBuffer(intern->command_buffer, buf->buffer,
+        (VkDeviceSize)offset, (VkDeviceSize)ZSTR_LEN(data), ZSTR_VAL(data));
+}
+
 static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, begin,              arginfo_vk_cb_begin,              ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, end,                arginfo_vk_cb_end,                ZEND_ACC_PUBLIC)
@@ -745,6 +980,12 @@ static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, copyImageToBuffer,  arginfo_vk_cb_copyImageToBuffer,  ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, copyBufferToImage,  arginfo_vk_cb_copyBufferToImage,  ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, imageMemoryBarrier, arginfo_vk_cb_imageMemoryBarrier, ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, blitImage,           arginfo_vk_cb_blitImage,          ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, clearColorImage,    arginfo_vk_cb_clearColorImage,    ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, clearDepthStencilImage, arginfo_vk_cb_clearDepthStencilImage, ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, copyImage,          arginfo_vk_cb_copyImage,          ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, fillBuffer,         arginfo_vk_cb_fillBuffer,         ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, updateBuffer,       arginfo_vk_cb_updateBuffer,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
