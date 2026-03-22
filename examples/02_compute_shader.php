@@ -13,10 +13,8 @@
  *   glslangValidator -V examples/shaders/multiply.comp -o examples/shaders/multiply.comp.spv
  */
 
-use Vk\Vk;
-
 // --- Setup ---
-$instance = new Vk\Instance(appName: 'PHPolygon Compute');
+$instance = new \Vk\Instance(appName: 'PHPolygon Compute');
 $devices = $instance->getPhysicalDevices();
 $physicalDevice = $devices[0];
 
@@ -37,7 +35,7 @@ if ($computeFamilyIndex === null) {
     exit(1);
 }
 
-$device = new Vk\Device($physicalDevice, [
+$device = new \Vk\Device($physicalDevice, [
     ['familyIndex' => $computeFamilyIndex, 'count' => 1],
 ]);
 
@@ -54,10 +52,10 @@ for ($i = 0; $i < $elementCount; $i++) {
 }
 
 // --- Buffers ---
-$inputBuffer = new Vk\Buffer($device, $bufferSize,
-    Vk::BUFFER_USAGE_STORAGE_BUFFER | Vk::BUFFER_USAGE_TRANSFER_DST);
-$outputBuffer = new Vk\Buffer($device, $bufferSize,
-    Vk::BUFFER_USAGE_STORAGE_BUFFER | Vk::BUFFER_USAGE_TRANSFER_SRC);
+$inputBuffer = new \Vk\Buffer($device, $bufferSize,
+    \Vk\Vk::BUFFER_USAGE_STORAGE_BUFFER | \Vk\Vk::BUFFER_USAGE_TRANSFER_DST);
+$outputBuffer = new \Vk\Buffer($device, $bufferSize,
+    \Vk\Vk::BUFFER_USAGE_STORAGE_BUFFER | \Vk\Vk::BUFFER_USAGE_TRANSFER_SRC);
 
 // --- Memory ---
 // Find host-visible memory type
@@ -80,8 +78,8 @@ if ($memTypeIndex === null) {
     exit(1);
 }
 
-$inputMemory = new Vk\DeviceMemory($device, $inputReqs['size'], $memTypeIndex);
-$outputMemory = new Vk\DeviceMemory($device, $outputReqs['size'], $memTypeIndex);
+$inputMemory = new \Vk\DeviceMemory($device, $inputReqs['size'], $memTypeIndex);
+$outputMemory = new \Vk\DeviceMemory($device, $outputReqs['size'], $memTypeIndex);
 
 $inputBuffer->bindMemory($inputMemory);
 $outputBuffer->bindMemory($outputMemory);
@@ -99,16 +97,16 @@ if (!file_exists($shaderPath)) {
     exit(1);
 }
 
-$shader = Vk\ShaderModule::createFromFile($device, $shaderPath);
+$shader = \Vk\ShaderModule::createFromFile($device, $shaderPath);
 
 // --- Descriptor Set ---
-$descriptorSetLayout = new Vk\DescriptorSetLayout($device, [
-    ['binding' => 0, 'type' => Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 1, 'stageFlags' => Vk::SHADER_STAGE_COMPUTE],
-    ['binding' => 1, 'type' => Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 1, 'stageFlags' => Vk::SHADER_STAGE_COMPUTE],
+$descriptorSetLayout = new \Vk\DescriptorSetLayout($device, [
+    ['binding' => 0, 'type' => \Vk\Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 1, 'stageFlags' => \Vk\Vk::SHADER_STAGE_COMPUTE],
+    ['binding' => 1, 'type' => \Vk\Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 1, 'stageFlags' => \Vk\Vk::SHADER_STAGE_COMPUTE],
 ]);
 
-$descriptorPool = new Vk\DescriptorPool($device, 1, [
-    ['type' => Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 2],
+$descriptorPool = new \Vk\DescriptorPool($device, 1, [
+    ['type' => \Vk\Vk::DESCRIPTOR_TYPE_STORAGE_BUFFER, 'count' => 2],
 ]);
 
 $descriptorSets = $descriptorPool->allocateSets([$descriptorSetLayout]);
@@ -118,29 +116,29 @@ $descriptorSet->writeBuffer(0, $inputBuffer);
 $descriptorSet->writeBuffer(1, $outputBuffer);
 
 // --- Pipeline ---
-$pipelineLayout = new Vk\PipelineLayout($device, [$descriptorSetLayout]);
-$pipeline = Vk\Pipeline::createCompute($device, $pipelineLayout, $shader);
+$pipelineLayout = new \Vk\PipelineLayout($device, [$descriptorSetLayout]);
+$pipeline = \Vk\Pipeline::createCompute($device, $pipelineLayout, $shader);
 
 // --- Command Buffer ---
-$commandPool = new Vk\CommandPool($device, $computeFamilyIndex,
-    Vk::COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER);
+$commandPool = new \Vk\CommandPool($device, $computeFamilyIndex,
+    \Vk\Vk::COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER);
 $commandBuffers = $commandPool->allocateBuffers(1);
 $cmd = $commandBuffers[0];
 
-$cmd->begin(Vk::COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT);
-$cmd->bindPipeline(Vk::PIPELINE_BIND_POINT_COMPUTE, $pipeline);
-$cmd->bindDescriptorSets(Vk::PIPELINE_BIND_POINT_COMPUTE, $pipelineLayout, 0, [$descriptorSet]);
+$cmd->begin(\Vk\Vk::COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT);
+$cmd->bindPipeline(\Vk\Vk::PIPELINE_BIND_POINT_COMPUTE, $pipeline);
+$cmd->bindDescriptorSets(\Vk\Vk::PIPELINE_BIND_POINT_COMPUTE, $pipelineLayout, 0, [$descriptorSet]);
 $cmd->dispatch(intdiv($elementCount, 64) ?: 1); // workgroup size 64
 $cmd->pipelineBarrier(
-    Vk::PIPELINE_STAGE_COMPUTE_SHADER,
-    Vk::PIPELINE_STAGE_TRANSFER,
-    Vk::ACCESS_SHADER_WRITE,
-    Vk::ACCESS_HOST_READ
+    \Vk\Vk::PIPELINE_STAGE_COMPUTE_SHADER,
+    \Vk\Vk::PIPELINE_STAGE_TRANSFER,
+    \Vk\Vk::ACCESS_SHADER_WRITE,
+    \Vk\Vk::ACCESS_HOST_READ
 );
 $cmd->end();
 
 // --- Execute ---
-$fence = new Vk\Fence($device);
+$fence = new \Vk\Fence($device);
 $queue->submit([$cmd], $fence);
 $fence->wait();
 
