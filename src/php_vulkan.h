@@ -25,7 +25,7 @@
 
 #include <vulkan/vulkan.h>
 
-#define PHP_VULKAN_VERSION "0.1.0"
+#define PHP_VULKAN_VERSION "0.5.0"
 #define PHP_VULKAN_EXTNAME "vulkan"
 
 extern zend_module_entry vulkan_module_entry;

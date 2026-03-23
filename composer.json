@@ -1,5 +1,6 @@
 {
     "name": "hmennen90/php-vulkan",
+    "version": "0.5.0",
     "type": "php-ext",
     "license": "MIT",
     "description": "PHP Vulkan API bindings for 2D/3D graphics and GPU compute — built for PHPolygon engine",

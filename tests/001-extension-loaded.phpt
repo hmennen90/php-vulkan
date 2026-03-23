@@ -7,4 +7,4 @@ var_dump(phpversion('vulkan'));
 ?>
 --EXPECT--
 bool(true)
-string(5) "0.1.0"
+string(5) "0.5.0"

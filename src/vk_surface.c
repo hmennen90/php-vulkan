@@ -1,12 +1,26 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Vulkan — VkSurfaceKHR (placeholder for windowing integration)    |
+  | PHP Vulkan — VkSurfaceKHR (GLFW window surface integration)         |
   +----------------------------------------------------------------------+
   | Copyright (c) 2026 Hendrik Mennen                                    |
   +----------------------------------------------------------------------+
 */
 
 #include "php_vulkan.h"
+
+/* GLFW — used for glfwCreateWindowSurface() */
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+/* ------------------------------------------------------------------ */
+/*  php-glfw interop                                                    */
+/*  phpglfw_glfwwindow_ce and phpglfw_glfwwindowptr_from_zval_ptr are  */
+/*  exported symbols from the php-glfw extension (phpgl/php-glfw).     */
+/*  We resolve them at runtime to avoid a hard compile-time dependency. */
+/* ------------------------------------------------------------------ */
+
+extern zend_class_entry *phpglfw_glfwwindow_ce;
+extern GLFWwindow *phpglfw_glfwwindowptr_from_zval_ptr(zval *zp);
 
 zend_class_entry *vk_surface_ce;
 static zend_object_handlers vk_surface_handlers;
@@ -31,6 +45,45 @@ static void vk_surface_free_object(zend_object *object) {
     }
     zval_ptr_dtor(&intern->instance_zval);
     zend_object_std_dtor(&intern->std);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Vk\Surface::__construct(Vk\Instance $instance, GLFWwindow $window) */
+/* ------------------------------------------------------------------ */
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_vk_surface___construct, 0, 0, 2)
+    ZEND_ARG_OBJ_INFO(0, instance, Vk\\Instance, 0)
+    ZEND_ARG_OBJ_INFO(0, window, GLFWwindow, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkSurface, __construct) {
+    zval *instance_zval, *window_zval;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJECT_OF_CLASS(instance_zval, vk_instance_ce)
+        Z_PARAM_OBJECT_OF_CLASS(window_zval, phpglfw_glfwwindow_ce)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_surface_object *intern = VK_OBJ(vk_surface_object, Z_OBJ_P(ZEND_THIS));
+    vk_instance_object *inst = VK_OBJ(vk_instance_object, Z_OBJ_P(instance_zval));
+
+    /* Extract the native GLFWwindow* from the php-glfw object */
+    GLFWwindow *glfw_window = phpglfw_glfwwindowptr_from_zval_ptr(window_zval);
+    if (!glfw_window) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "GLFWwindow object does not contain a valid window pointer", 0);
+        return;
+    }
+
+    /* Create the Vulkan surface via GLFW */
+    VkResult result = glfwCreateWindowSurface(inst->instance, glfw_window, NULL, &intern->surface);
+    if (result != VK_SUCCESS) {
+        vk_throw_exception(result, "Failed to create Vulkan surface from GLFW window");
+        return;
+    }
+
+    /* Hold a reference to the instance to prevent GC while surface is alive */
+    ZVAL_COPY(&intern->instance_zval, instance_zval);
 }
 
 /* Vk\Surface::getCapabilities(Vk\PhysicalDevice $physicalDevice): array */
@@ -128,6 +181,7 @@ PHP_METHOD(VkSurface, getPresentModes) {
 }
 
 static const zend_function_entry vk_surface_methods[] = {
+    PHP_ME(VkSurface, __construct,      arginfo_vk_surface___construct,      ZEND_ACC_PUBLIC)
     PHP_ME(VkSurface, getCapabilities,  arginfo_vk_surface_getCapabilities,  ZEND_ACC_PUBLIC)
     PHP_ME(VkSurface, getFormats,       arginfo_vk_surface_getFormats,       ZEND_ACC_PUBLIC)
     PHP_ME(VkSurface, getPresentModes,  arginfo_vk_surface_getPresentModes,  ZEND_ACC_PUBLIC)

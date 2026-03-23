@@ -44,6 +44,35 @@ if test "$PHP_VULKAN" != "no"; then
   PHP_EVAL_LIBLINE($VULKAN_LIBS, VULKAN_SHARED_LIBADD)
   PHP_SUBST(VULKAN_SHARED_LIBADD)
 
+  dnl Check for GLFW3 (required for Vk\Surface window integration)
+  AC_MSG_CHECKING([for GLFW3])
+  GLFW_SEARCH_PATH="/opt/homebrew /usr/local /usr"
+  GLFW_FOUND="no"
+
+  for i in $GLFW_SEARCH_PATH; do
+    if test -r "$i/include/GLFW/glfw3.h"; then
+      GLFW_DIR=$i
+      GLFW_FOUND="yes"
+      AC_MSG_RESULT([found in $GLFW_DIR])
+      break
+    fi
+  done
+
+  if test "$GLFW_FOUND" = "no"; then
+    dnl Try pkg-config as fallback
+    PKG_CHECK_MODULES([GLFW], [glfw3], [
+      PHP_EVAL_INCLINE($GLFW_CFLAGS)
+      PHP_EVAL_LIBLINE($GLFW_LIBS, VULKAN_SHARED_LIBADD)
+      GLFW_FOUND="yes"
+      AC_MSG_RESULT([found via pkg-config])
+    ], [
+      AC_MSG_WARN([GLFW3 not found — Vk\Surface will link without GLFW, but glfwCreateWindowSurface will fail at runtime])
+    ])
+  else
+    PHP_EVAL_INCLINE(-I$GLFW_DIR/include)
+    PHP_EVAL_LIBLINE(-L$GLFW_DIR/lib -lglfw, VULKAN_SHARED_LIBADD)
+  fi
+
   VULKAN_SOURCES="src/vulkan.c src/vk_instance.c src/vk_physical_device.c src/vk_device.c src/vk_queue.c src/vk_buffer.c src/vk_device_memory.c src/vk_command_pool.c src/vk_command_buffer.c src/vk_shader_module.c src/vk_descriptor_set_layout.c src/vk_descriptor_pool.c src/vk_descriptor_set.c src/vk_pipeline_layout.c src/vk_pipeline.c src/vk_render_pass.c src/vk_framebuffer.c src/vk_image.c src/vk_image_view.c src/vk_sampler.c src/vk_fence.c src/vk_semaphore.c src/vk_swapchain.c src/vk_surface.c src/vk_enums.c src/vk_pipeline_cache.c src/vk_query_pool.c src/vk_event.c src/vk_descriptor_update_template.c"
 
   PHP_NEW_EXTENSION(vulkan, $VULKAN_SOURCES, $ext_shared)
