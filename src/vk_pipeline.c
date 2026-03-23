@@ -325,8 +325,23 @@ PHP_METHOD(VkPipeline, createGraphics) {
         .pAttachments = &blend_attachment,
     };
 
+    /* Pipeline derivatives */
+    zval *zbase = zend_hash_str_find(config, "basePipeline", sizeof("basePipeline") - 1);
+    zval *zallow_derive = zend_hash_str_find(config, "allowDerivatives", sizeof("allowDerivatives") - 1);
+    VkPipeline base_pipeline = VK_NULL_HANDLE;
+    VkPipelineCreateFlags create_flags = 0;
+    if (zbase && Z_TYPE_P(zbase) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zbase), vk_pipeline_ce)) {
+        vk_pipeline_object *bp = VK_OBJ(vk_pipeline_object, Z_OBJ_P(zbase));
+        base_pipeline = bp->pipeline;
+        create_flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+    }
+    if (zallow_derive && zval_is_true(zallow_derive)) {
+        create_flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+    }
+
     VkGraphicsPipelineCreateInfo pipeline_info = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .flags = create_flags,
         .stageCount = 2,
         .pStages = stages,
         .pVertexInputState = &vertex_input,
@@ -340,6 +355,8 @@ PHP_METHOD(VkPipeline, createGraphics) {
         .layout = layout->layout,
         .renderPass = rp->render_pass,
         .subpass = 0,
+        .basePipelineHandle = base_pipeline,
+        .basePipelineIndex = -1,
     };
 
     object_init_ex(return_value, vk_pipeline_ce);

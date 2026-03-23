@@ -227,9 +227,141 @@ PHP_METHOD(VkQueue, present) {
     RETURN_LONG((zend_long)result);
 }
 
+/* Vk\Queue::bindSparse(array $bufferBinds = [], array $imageOpaqueBinds = [],
+ *     ?Vk\Fence $fence = null, array<Vk\Semaphore> $waitSemaphores = [],
+ *     array<Vk\Semaphore> $signalSemaphores = []): void
+ *
+ * bufferBinds: [['buffer' => Buffer, 'offset' => int, 'size' => int,
+ *                'memory' => DeviceMemory, 'memoryOffset' => int], ...]
+ * imageOpaqueBinds: [['image' => Image, 'offset' => int, 'size' => int,
+ *                     'memory' => DeviceMemory, 'memoryOffset' => int], ...] */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_queue_bindSparse, 0, 0, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, bufferBinds, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO(0, imageOpaqueBinds, IS_ARRAY, 0)
+    ZEND_ARG_OBJ_INFO(0, fence, Vk\\Fence, 1)
+    ZEND_ARG_TYPE_INFO(0, waitSemaphores, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO(0, signalSemaphores, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkQueue, bindSparse) {
+    HashTable *buffer_binds = NULL;
+    HashTable *image_opaque_binds = NULL;
+    zval *fence_zval = NULL;
+    HashTable *wait_sems = NULL;
+    HashTable *signal_sems = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(0, 5)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT(buffer_binds)
+        Z_PARAM_ARRAY_HT(image_opaque_binds)
+        Z_PARAM_OBJECT_OF_CLASS_OR_NULL(fence_zval, vk_fence_ce)
+        Z_PARAM_ARRAY_HT(wait_sems)
+        Z_PARAM_ARRAY_HT(signal_sems)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_queue_object *intern = VK_OBJ(vk_queue_object, Z_OBJ_P(ZEND_THIS));
+
+    /* Parse buffer sparse binds */
+    uint32_t buf_bind_count = buffer_binds ? zend_hash_num_elements(buffer_binds) : 0;
+    VkSparseBufferMemoryBindInfo *buf_infos = NULL;
+    VkSparseMemoryBind *buf_binds_arr = NULL;
+
+    if (buf_bind_count > 0) {
+        buf_binds_arr = ecalloc(buf_bind_count, sizeof(VkSparseMemoryBind));
+        /* Group by buffer — for simplicity, support one buffer at a time */
+        VkBuffer cur_buf = VK_NULL_HANDLE;
+        zval *zv;
+        uint32_t bi = 0;
+        ZEND_HASH_FOREACH_VAL(buffer_binds, zv) {
+            if (Z_TYPE_P(zv) != IS_ARRAY) continue;
+            HashTable *b = Z_ARRVAL_P(zv);
+
+            zval *zbuf = zend_hash_str_find(b, "buffer", sizeof("buffer") - 1);
+            zval *zoff = zend_hash_str_find(b, "offset", sizeof("offset") - 1);
+            zval *zsize = zend_hash_str_find(b, "size", sizeof("size") - 1);
+            zval *zmem = zend_hash_str_find(b, "memory", sizeof("memory") - 1);
+            zval *zmoff = zend_hash_str_find(b, "memoryOffset", sizeof("memoryOffset") - 1);
+
+            if (zbuf && Z_TYPE_P(zbuf) == IS_OBJECT) {
+                cur_buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(zbuf))->buffer;
+            }
+
+            buf_binds_arr[bi] = (VkSparseMemoryBind){
+                .resourceOffset = zoff ? (VkDeviceSize)zval_get_long(zoff) : 0,
+                .size = zsize ? (VkDeviceSize)zval_get_long(zsize) : 0,
+                .memory = (zmem && Z_TYPE_P(zmem) == IS_OBJECT) ?
+                    VK_OBJ(vk_device_memory_object, Z_OBJ_P(zmem))->memory : VK_NULL_HANDLE,
+                .memoryOffset = zmoff ? (VkDeviceSize)zval_get_long(zmoff) : 0,
+            };
+            bi++;
+        } ZEND_HASH_FOREACH_END();
+
+        buf_infos = ecalloc(1, sizeof(VkSparseBufferMemoryBindInfo));
+        buf_infos[0] = (VkSparseBufferMemoryBindInfo){
+            .buffer = cur_buf,
+            .bindCount = bi,
+            .pBinds = buf_binds_arr,
+        };
+    }
+
+    /* Wait/signal semaphores */
+    uint32_t wait_count = wait_sems ? zend_hash_num_elements(wait_sems) : 0;
+    VkSemaphore *wait_handles = NULL;
+    if (wait_count > 0) {
+        wait_handles = ecalloc(wait_count, sizeof(VkSemaphore));
+        zval *zv; uint32_t wi = 0;
+        ZEND_HASH_FOREACH_VAL(wait_sems, zv) {
+            if (Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_semaphore_ce)) {
+                wait_handles[wi++] = VK_OBJ(vk_semaphore_object, Z_OBJ_P(zv))->semaphore;
+            }
+        } ZEND_HASH_FOREACH_END();
+        wait_count = wi;
+    }
+
+    uint32_t signal_count = signal_sems ? zend_hash_num_elements(signal_sems) : 0;
+    VkSemaphore *signal_handles = NULL;
+    if (signal_count > 0) {
+        signal_handles = ecalloc(signal_count, sizeof(VkSemaphore));
+        zval *zv; uint32_t si = 0;
+        ZEND_HASH_FOREACH_VAL(signal_sems, zv) {
+            if (Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_semaphore_ce)) {
+                signal_handles[si++] = VK_OBJ(vk_semaphore_object, Z_OBJ_P(zv))->semaphore;
+            }
+        } ZEND_HASH_FOREACH_END();
+        signal_count = si;
+    }
+
+    VkFence fence = VK_NULL_HANDLE;
+    if (fence_zval) {
+        fence = VK_OBJ(vk_fence_object, Z_OBJ_P(fence_zval))->fence;
+    }
+
+    VkBindSparseInfo bind_info = {
+        .sType = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
+        .waitSemaphoreCount = wait_count,
+        .pWaitSemaphores = wait_handles,
+        .bufferBindCount = buf_infos ? 1 : 0,
+        .pBufferBinds = buf_infos,
+        .signalSemaphoreCount = signal_count,
+        .pSignalSemaphores = signal_handles,
+    };
+
+    VkResult result = vkQueueBindSparse(intern->queue, 1, &bind_info, fence);
+
+    if (buf_binds_arr) efree(buf_binds_arr);
+    if (buf_infos) efree(buf_infos);
+    if (wait_handles) efree(wait_handles);
+    if (signal_handles) efree(signal_handles);
+
+    if (result != VK_SUCCESS) {
+        vk_throw_exception(result, "Failed to bind sparse resources");
+    }
+}
+
 static const zend_function_entry vk_queue_methods[] = {
     PHP_ME(VkQueue, submit,         arginfo_vk_queue_submit,         ZEND_ACC_PUBLIC)
     PHP_ME(VkQueue, present,        arginfo_vk_queue_present,        ZEND_ACC_PUBLIC)
+    PHP_ME(VkQueue, bindSparse,     arginfo_vk_queue_bindSparse,     ZEND_ACC_PUBLIC)
     PHP_ME(VkQueue, waitIdle,       arginfo_vk_queue_waitIdle,       ZEND_ACC_PUBLIC)
     PHP_ME(VkQueue, getFamilyIndex, arginfo_vk_queue_getFamilyIndex, ZEND_ACC_PUBLIC)
     PHP_FE_END

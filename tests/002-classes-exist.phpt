@@ -12,6 +12,7 @@ $classes = [
     'Vk\Fence', 'Vk\Semaphore', 'Vk\Event',
     'Vk\Swapchain', 'Vk\Surface',
     'Vk\QueryPool',
+    'Vk\DescriptorUpdateTemplate',
     'Vk\Vk', 'Vk\VulkanException',
 ];
 
@@ -46,5 +47,6 @@ Vk\Event: OK
 Vk\Swapchain: OK
 Vk\Surface: OK
 Vk\QueryPool: OK
+Vk\DescriptorUpdateTemplate: OK
 Vk\Vk: OK
 Vk\VulkanException: OK

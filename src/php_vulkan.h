@@ -61,6 +61,7 @@ extern zend_class_entry *vk_surface_ce;
 extern zend_class_entry *vk_pipeline_cache_ce;
 extern zend_class_entry *vk_query_pool_ce;
 extern zend_class_entry *vk_event_ce;
+extern zend_class_entry *vk_descriptor_update_template_ce;
 
 /* Exception */
 extern zend_class_entry *vk_vulkan_exception_ce;
@@ -237,6 +238,14 @@ typedef struct _vk_event_object {
     zend_object std;
 } vk_event_object;
 
+typedef struct _vk_descriptor_update_template_object {
+    VkDescriptorUpdateTemplate update_template;
+    uint32_t    entry_count;
+    size_t      data_size;
+    zval        device_zval;
+    zend_object std;
+} vk_descriptor_update_template_object;
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -287,5 +296,6 @@ void php_vk_enums_register(void);
 void php_vk_pipeline_cache_register(void);
 void php_vk_query_pool_register(void);
 void php_vk_event_register(void);
+void php_vk_descriptor_update_template_register(void);
 
 #endif /* PHP_VULKAN_H */

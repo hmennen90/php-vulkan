@@ -45,6 +45,7 @@ if (PHP_VULKAN != "no") {
             src\\vk_pipeline_cache.c \
             src\\vk_query_pool.c \
             src\\vk_event.c \
+            src\\vk_descriptor_update_template.c \
         ", true);
 
         AC_DEFINE("HAVE_VULKAN", 1, "Vulkan support");

@@ -110,6 +110,7 @@ PHP_MINIT_FUNCTION(vulkan) {
     php_vk_pipeline_cache_register();
     php_vk_query_pool_register();
     php_vk_event_register();
+    php_vk_descriptor_update_template_register();
 
     return SUCCESS;
 }

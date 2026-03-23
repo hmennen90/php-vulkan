@@ -724,6 +724,298 @@ PHP_METHOD(VkCommandBuffer, imageMemoryBarrier) {
         0, 0, NULL, 0, NULL, 1, &barrier);
 }
 
+/* ---- Dynamic Rendering (VK_KHR_dynamic_rendering / Vulkan 1.3) ---- */
+
+/* Vk\CommandBuffer::beginRendering(int $width, int $height, array $colorAttachments,
+ *     ?array $depthAttachment = null, ?array $stencilAttachment = null,
+ *     int $layerCount = 1, int $viewMask = 0, int $flags = 0): void
+ *
+ * colorAttachments: [['imageView' => ImageView, 'imageLayout' => int, 'loadOp' => int,
+ *     'storeOp' => int, 'clearValue' => [r,g,b,a]], ...]
+ * depthAttachment: ['imageView' => ImageView, 'imageLayout' => int, 'loadOp' => int,
+ *     'storeOp' => int, 'clearValue' => [depth, stencil]] */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_beginRendering, 0, 3, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, width, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, height, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, colorAttachments, IS_ARRAY, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, depthAttachment, IS_ARRAY, 1, "null")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, stencilAttachment, IS_ARRAY, 1, "null")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, layerCount, IS_LONG, 0, "1")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, viewMask, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+static void vk_parse_rendering_attachment(HashTable *ht, VkRenderingAttachmentInfo *att) {
+    memset(att, 0, sizeof(*att));
+    att->sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+
+    zval *zv;
+    if ((zv = zend_hash_str_find(ht, "imageView", sizeof("imageView") - 1)) &&
+        Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_image_view_ce)) {
+        att->imageView = VK_OBJ(vk_image_view_object, Z_OBJ_P(zv))->image_view;
+    }
+    if ((zv = zend_hash_str_find(ht, "imageLayout", sizeof("imageLayout") - 1)))
+        att->imageLayout = (VkImageLayout)zval_get_long(zv);
+    else
+        att->imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    if ((zv = zend_hash_str_find(ht, "loadOp", sizeof("loadOp") - 1)))
+        att->loadOp = (VkAttachmentLoadOp)zval_get_long(zv);
+    else
+        att->loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    if ((zv = zend_hash_str_find(ht, "storeOp", sizeof("storeOp") - 1)))
+        att->storeOp = (VkAttachmentStoreOp)zval_get_long(zv);
+    else
+        att->storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+    zval *zclear = zend_hash_str_find(ht, "clearValue", sizeof("clearValue") - 1);
+    if (zclear && Z_TYPE_P(zclear) == IS_ARRAY) {
+        uint32_t count = zend_hash_num_elements(Z_ARRVAL_P(zclear));
+        if (count == 4) {
+            zval *r = zend_hash_index_find(Z_ARRVAL_P(zclear), 0);
+            zval *g = zend_hash_index_find(Z_ARRVAL_P(zclear), 1);
+            zval *b = zend_hash_index_find(Z_ARRVAL_P(zclear), 2);
+            zval *a = zend_hash_index_find(Z_ARRVAL_P(zclear), 3);
+            att->clearValue.color.float32[0] = r ? (float)zval_get_double(r) : 0.0f;
+            att->clearValue.color.float32[1] = g ? (float)zval_get_double(g) : 0.0f;
+            att->clearValue.color.float32[2] = b ? (float)zval_get_double(b) : 0.0f;
+            att->clearValue.color.float32[3] = a ? (float)zval_get_double(a) : 1.0f;
+        } else if (count == 2) {
+            zval *d = zend_hash_index_find(Z_ARRVAL_P(zclear), 0);
+            zval *s = zend_hash_index_find(Z_ARRVAL_P(zclear), 1);
+            att->clearValue.depthStencil.depth = d ? (float)zval_get_double(d) : 1.0f;
+            att->clearValue.depthStencil.stencil = s ? (uint32_t)zval_get_long(s) : 0;
+        }
+    }
+}
+
+PHP_METHOD(VkCommandBuffer, beginRendering) {
+    zend_long width, height, layer_count = 1, view_mask = 0, flags = 0;
+    HashTable *color_attachments;
+    HashTable *depth_attachment = NULL;
+    HashTable *stencil_attachment = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(3, 8)
+        Z_PARAM_LONG(width)
+        Z_PARAM_LONG(height)
+        Z_PARAM_ARRAY_HT(color_attachments)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT_OR_NULL(depth_attachment)
+        Z_PARAM_ARRAY_HT_OR_NULL(stencil_attachment)
+        Z_PARAM_LONG(layer_count)
+        Z_PARAM_LONG(view_mask)
+        Z_PARAM_LONG(flags)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+
+    /* Load function dynamically (Vulkan 1.3 or VK_KHR_dynamic_rendering) */
+    PFN_vkCmdBeginRenderingKHR beginRenderingFn =
+        (PFN_vkCmdBeginRenderingKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdBeginRenderingKHR");
+    if (!beginRenderingFn) {
+        /* Try core Vulkan 1.3 name */
+        beginRenderingFn = (PFN_vkCmdBeginRenderingKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdBeginRendering");
+    }
+    if (!beginRenderingFn) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "Dynamic rendering not supported (need VK_KHR_dynamic_rendering or Vulkan 1.3)", 0);
+        return;
+    }
+
+    /* Parse color attachments */
+    uint32_t ca_count = zend_hash_num_elements(color_attachments);
+    VkRenderingAttachmentInfo *ca_infos = ecalloc(ca_count, sizeof(VkRenderingAttachmentInfo));
+    zval *zv;
+    uint32_t idx = 0;
+    ZEND_HASH_FOREACH_VAL(color_attachments, zv) {
+        if (Z_TYPE_P(zv) == IS_ARRAY) {
+            vk_parse_rendering_attachment(Z_ARRVAL_P(zv), &ca_infos[idx++]);
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    /* Parse depth attachment */
+    VkRenderingAttachmentInfo depth_info = {0};
+    if (depth_attachment) {
+        vk_parse_rendering_attachment(depth_attachment, &depth_info);
+    }
+
+    /* Parse stencil attachment */
+    VkRenderingAttachmentInfo stencil_info = {0};
+    if (stencil_attachment) {
+        vk_parse_rendering_attachment(stencil_attachment, &stencil_info);
+    }
+
+    VkRenderingInfo rendering_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = {{0, 0}, {(uint32_t)width, (uint32_t)height}},
+        .layerCount = (uint32_t)layer_count,
+        .viewMask = (uint32_t)view_mask,
+        .colorAttachmentCount = idx,
+        .pColorAttachments = ca_infos,
+        .pDepthAttachment = depth_attachment ? &depth_info : NULL,
+        .pStencilAttachment = stencil_attachment ? &stencil_info : NULL,
+        .flags = (VkRenderingFlags)flags,
+    };
+
+    beginRenderingFn(intern->command_buffer, &rendering_info);
+    efree(ca_infos);
+}
+
+/* Vk\CommandBuffer::endRendering(): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_endRendering, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, endRendering) {
+    ZEND_PARSE_PARAMETERS_NONE();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+
+    PFN_vkCmdEndRenderingKHR endRenderingFn =
+        (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdEndRenderingKHR");
+    if (!endRenderingFn) {
+        endRenderingFn = (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdEndRendering");
+    }
+    if (endRenderingFn) {
+        endRenderingFn(intern->command_buffer);
+    }
+}
+
+/* ---- Push Descriptors (VK_KHR_push_descriptor) ---- */
+
+/* Vk\CommandBuffer::pushDescriptorSetBuffer(int $bindPoint, Vk\PipelineLayout $layout,
+ *     int $set, int $binding, int $descriptorType, Vk\Buffer $buffer,
+ *     int $offset = 0, ?int $range = null): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_pushDescriptorSetBuffer, 0, 6, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, bindPoint, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, layout, Vk\\PipelineLayout, 0)
+    ZEND_ARG_TYPE_INFO(0, set, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, binding, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, descriptorType, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, buffer, Vk\\Buffer, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, range, IS_LONG, 1, "null")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, pushDescriptorSetBuffer) {
+    zend_long bind_point, set, binding, descriptor_type, offset = 0;
+    zval *layout_zval, *buffer_zval;
+    zend_long range_arg = 0;
+    zend_bool range_is_null = 1;
+
+    ZEND_PARSE_PARAMETERS_START(6, 8)
+        Z_PARAM_LONG(bind_point)
+        Z_PARAM_OBJECT_OF_CLASS(layout_zval, vk_pipeline_layout_ce)
+        Z_PARAM_LONG(set)
+        Z_PARAM_LONG(binding)
+        Z_PARAM_LONG(descriptor_type)
+        Z_PARAM_OBJECT_OF_CLASS(buffer_zval, vk_buffer_ce)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(offset)
+        Z_PARAM_LONG_OR_NULL(range_arg, range_is_null)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_pipeline_layout_object *layout = VK_OBJ(vk_pipeline_layout_object, Z_OBJ_P(layout_zval));
+    vk_buffer_object *buf = VK_OBJ(vk_buffer_object, Z_OBJ_P(buffer_zval));
+
+    PFN_vkCmdPushDescriptorSetKHR pushFn =
+        (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdPushDescriptorSetKHR");
+    if (!pushFn) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "Push descriptors not supported (need VK_KHR_push_descriptor)", 0);
+        return;
+    }
+
+    VkDescriptorBufferInfo buffer_info = {
+        .buffer = buf->buffer,
+        .offset = (VkDeviceSize)offset,
+        .range = range_is_null ? VK_WHOLE_SIZE : (VkDeviceSize)range_arg,
+    };
+
+    VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstBinding = (uint32_t)binding,
+        .descriptorCount = 1,
+        .descriptorType = (VkDescriptorType)descriptor_type,
+        .pBufferInfo = &buffer_info,
+    };
+
+    pushFn(intern->command_buffer, (VkPipelineBindPoint)bind_point,
+        layout->layout, (uint32_t)set, 1, &write);
+}
+
+/* Vk\CommandBuffer::pushDescriptorSetImage(int $bindPoint, Vk\PipelineLayout $layout,
+ *     int $set, int $binding, int $descriptorType, Vk\ImageView $imageView,
+ *     Vk\Sampler $sampler, int $imageLayout = 5): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_pushDescriptorSetImage, 0, 7, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, bindPoint, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, layout, Vk\\PipelineLayout, 0)
+    ZEND_ARG_TYPE_INFO(0, set, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, binding, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, descriptorType, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, imageView, Vk\\ImageView, 0)
+    ZEND_ARG_OBJ_INFO(0, sampler, Vk\\Sampler, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, imageLayout, IS_LONG, 0, "5")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, pushDescriptorSetImage) {
+    zend_long bind_point, set, binding, descriptor_type;
+    zval *layout_zval, *iv_zval, *sampler_zval;
+    zend_long image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    ZEND_PARSE_PARAMETERS_START(7, 8)
+        Z_PARAM_LONG(bind_point)
+        Z_PARAM_OBJECT_OF_CLASS(layout_zval, vk_pipeline_layout_ce)
+        Z_PARAM_LONG(set)
+        Z_PARAM_LONG(binding)
+        Z_PARAM_LONG(descriptor_type)
+        Z_PARAM_OBJECT_OF_CLASS(iv_zval, vk_image_view_ce)
+        Z_PARAM_OBJECT_OF_CLASS(sampler_zval, vk_sampler_ce)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_LONG(image_layout)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_pipeline_layout_object *layout = VK_OBJ(vk_pipeline_layout_object, Z_OBJ_P(layout_zval));
+    vk_image_view_object *iv = VK_OBJ(vk_image_view_object, Z_OBJ_P(iv_zval));
+    vk_sampler_object *sampler = VK_OBJ(vk_sampler_object, Z_OBJ_P(sampler_zval));
+
+    PFN_vkCmdPushDescriptorSetKHR pushFn =
+        (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdPushDescriptorSetKHR");
+    if (!pushFn) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "Push descriptors not supported (need VK_KHR_push_descriptor)", 0);
+        return;
+    }
+
+    VkDescriptorImageInfo image_info = {
+        .sampler = sampler->sampler,
+        .imageView = iv->image_view,
+        .imageLayout = (VkImageLayout)image_layout,
+    };
+
+    VkWriteDescriptorSet write = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstBinding = (uint32_t)binding,
+        .descriptorCount = 1,
+        .descriptorType = (VkDescriptorType)descriptor_type,
+        .pImageInfo = &image_info,
+    };
+
+    pushFn(intern->command_buffer, (VkPipelineBindPoint)bind_point,
+        layout->layout, (uint32_t)set, 1, &write);
+}
+
 /* Vk\CommandBuffer::blitImage(Vk\Image $srcImage, int $srcLayout,
  *     Vk\Image $dstImage, int $dstLayout,
  *     int $srcX0, int $srcY0, int $srcX1, int $srcY1,
@@ -1261,6 +1553,10 @@ static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, beginDebugLabel,   arginfo_vk_cb_beginDebugLabel,    ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, endDebugLabel,     arginfo_vk_cb_endDebugLabel,      ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, insertDebugLabel,  arginfo_vk_cb_insertDebugLabel,   ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, beginRendering,    arginfo_vk_cb_beginRendering,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, endRendering,      arginfo_vk_cb_endRendering,       ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, pushDescriptorSetBuffer, arginfo_vk_cb_pushDescriptorSetBuffer, ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, pushDescriptorSetImage,  arginfo_vk_cb_pushDescriptorSetImage,  ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

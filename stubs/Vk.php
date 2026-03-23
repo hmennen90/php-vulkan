@@ -329,6 +329,15 @@ final class Queue
      */
     public function present(array $swapchains, array $imageIndices, array $waitSemaphores = []): int {}
 
+    /** Bind sparse resources (virtual textures, sparse buffers). */
+    public function bindSparse(
+        array $bufferBinds = [],
+        array $imageOpaqueBinds = [],
+        ?Fence $fence = null,
+        array $waitSemaphores = [],
+        array $signalSemaphores = []
+    ): void {}
+
     public function waitIdle(): void {}
     public function getFamilyIndex(): int {}
 }
@@ -445,6 +454,14 @@ final class CommandBuffer
     public function beginDebugLabel(string $name, float $r = 1.0, float $g = 1.0, float $b = 1.0, float $a = 1.0): void {}
     public function endDebugLabel(): void {}
     public function insertDebugLabel(string $name, float $r = 1.0, float $g = 1.0, float $b = 1.0, float $a = 1.0): void {}
+
+    /* Dynamic Rendering (VK_KHR_dynamic_rendering / Vulkan 1.3) */
+    public function beginRendering(int $width, int $height, array $colorAttachments, ?array $depthAttachment = null, ?array $stencilAttachment = null, int $layerCount = 1, int $viewMask = 0, int $flags = 0): void {}
+    public function endRendering(): void {}
+
+    /* Push Descriptors (VK_KHR_push_descriptor) */
+    public function pushDescriptorSetBuffer(int $bindPoint, PipelineLayout $layout, int $set, int $binding, int $descriptorType, Buffer $buffer, int $offset = 0, ?int $range = null): void {}
+    public function pushDescriptorSetImage(int $bindPoint, PipelineLayout $layout, int $set, int $binding, int $descriptorType, ImageView $imageView, Sampler $sampler, int $imageLayout = 5): void {}
 }
 
 /**
@@ -539,6 +556,20 @@ final class PipelineCache
 }
 
 /**
+ * Descriptor update template for batch descriptor updates.
+ */
+final class DescriptorUpdateTemplate
+{
+    /**
+     * @param array $entries [['binding' => int, 'descriptorType' => int, 'descriptorCount' => int, 'offset' => int, 'stride' => int], ...]
+     */
+    public function __construct(Device $device, DescriptorSetLayout $layout, array $entries) {}
+
+    /** Update a descriptor set using this template with raw binary data. */
+    public function update(DescriptorSet $descriptorSet, string $data): void {}
+}
+
+/**
  * Render pass — defines attachments, subpasses, dependencies.
  */
 final class RenderPass
@@ -611,7 +642,16 @@ final class Fence
  */
 final class Semaphore
 {
-    public function __construct(Device $device) {}
+    public function __construct(Device $device, bool $timeline = false, int $initialValue = 0) {}
+
+    /** Wait for timeline semaphore to reach a value. */
+    public function wait(int $value, int $timeout = -1): bool {}
+
+    /** Signal timeline semaphore with a value. */
+    public function signal(int $value): void {}
+
+    /** Get current counter value (timeline only). */
+    public function getValue(): int {}
 }
 
 /**

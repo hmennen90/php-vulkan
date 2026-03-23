@@ -19,6 +19,8 @@ $expected = [
     'executeCommands',
     'beginQuery', 'endQuery', 'writeTimestamp', 'resetQueryPool',
     'beginDebugLabel', 'endDebugLabel', 'insertDebugLabel',
+    'beginRendering', 'endRendering',
+    'pushDescriptorSetBuffer', 'pushDescriptorSetImage',
 ];
 
 $missing = [];
@@ -33,4 +35,4 @@ if (empty($missing)) {
 }
 ?>
 --EXPECT--
-All 41 methods present
+All 45 methods present
