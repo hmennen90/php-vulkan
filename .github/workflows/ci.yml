@@ -41,8 +41,8 @@ jobs:
       - name: Verify extension loads
         run: php -d extension=modules/vulkan.so -m | grep vulkan
 
-      - name: Run phpinfo
-        run: php -d extension=modules/vulkan.so -r "phpinfo(INFO_MODULES);" | grep -A5 "vulkan"
+      - name: Run phpt tests
+        run: make test TESTS=tests/ NO_INTERACTION=1
 
       - name: Run examples (no GPU on CI runners)
         run: |
