@@ -34,29 +34,73 @@ static void vk_pipeline_free_object(zend_object *object) {
 }
 
 /* Vk\Pipeline::createCompute(Vk\Device $device, Vk\PipelineLayout $layout,
- *                             Vk\ShaderModule $shader, string $entryPoint = "main"): Vk\Pipeline */
+ *     Vk\ShaderModule $shader, string $entryPoint = "main",
+ *     ?Vk\PipelineCache $cache = null, ?array $specialization = null): Vk\Pipeline */
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_vk_pipeline_createCompute, 0, 3, Vk\\Pipeline, 0)
     ZEND_ARG_OBJ_INFO(0, device, Vk\\Device, 0)
     ZEND_ARG_OBJ_INFO(0, layout, Vk\\PipelineLayout, 0)
     ZEND_ARG_OBJ_INFO(0, shader, Vk\\ShaderModule, 0)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, entryPoint, IS_STRING, 0, "\"main\"")
+    ZEND_ARG_OBJ_INFO(0, cache, Vk\\PipelineCache, 1)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, specialization, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
 PHP_METHOD(VkPipeline, createCompute) {
     zval *device_zval, *layout_zval, *shader_zval;
     zend_string *entry_point = NULL;
+    zval *cache_zval = NULL;
+    HashTable *specialization = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(3, 4)
+    ZEND_PARSE_PARAMETERS_START(3, 6)
         Z_PARAM_OBJECT_OF_CLASS(device_zval, vk_device_ce)
         Z_PARAM_OBJECT_OF_CLASS(layout_zval, vk_pipeline_layout_ce)
         Z_PARAM_OBJECT_OF_CLASS(shader_zval, vk_shader_module_ce)
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(entry_point)
+        Z_PARAM_OBJECT_OF_CLASS_OR_NULL(cache_zval, vk_pipeline_cache_ce)
+        Z_PARAM_ARRAY_HT_OR_NULL(specialization)
     ZEND_PARSE_PARAMETERS_END();
 
     vk_device_object *dev = VK_OBJ(vk_device_object, Z_OBJ_P(device_zval));
     vk_pipeline_layout_object *layout = VK_OBJ(vk_pipeline_layout_object, Z_OBJ_P(layout_zval));
     vk_shader_module_object *shader = VK_OBJ(vk_shader_module_object, Z_OBJ_P(shader_zval));
+
+    VkPipelineCache vk_cache = VK_NULL_HANDLE;
+    if (cache_zval) {
+        vk_pipeline_cache_object *cache = VK_OBJ(vk_pipeline_cache_object, Z_OBJ_P(cache_zval));
+        vk_cache = cache->pipeline_cache;
+    }
+
+    /* Specialization constants: ['data' => string, 'entries' => [['id' => int, 'offset' => int, 'size' => int], ...]] */
+    VkSpecializationInfo spec_info = {0};
+    VkSpecializationMapEntry *spec_entries = NULL;
+    if (specialization) {
+        zval *zdata = zend_hash_str_find(specialization, "data", sizeof("data") - 1);
+        zval *zentries = zend_hash_str_find(specialization, "entries", sizeof("entries") - 1);
+        if (zdata && Z_TYPE_P(zdata) == IS_STRING && zentries && Z_TYPE_P(zentries) == IS_ARRAY) {
+            uint32_t entry_count = zend_hash_num_elements(Z_ARRVAL_P(zentries));
+            spec_entries = ecalloc(entry_count, sizeof(VkSpecializationMapEntry));
+            zval *ze;
+            uint32_t ei = 0;
+            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zentries), ze) {
+                if (Z_TYPE_P(ze) != IS_ARRAY) continue;
+                HashTable *e = Z_ARRVAL_P(ze);
+                zval *zid = zend_hash_str_find(e, "id", sizeof("id") - 1);
+                zval *zoff = zend_hash_str_find(e, "offset", sizeof("offset") - 1);
+                zval *zsize = zend_hash_str_find(e, "size", sizeof("size") - 1);
+                spec_entries[ei] = (VkSpecializationMapEntry){
+                    .constantID = zid ? (uint32_t)zval_get_long(zid) : ei,
+                    .offset = zoff ? (uint32_t)zval_get_long(zoff) : 0,
+                    .size = zsize ? (size_t)zval_get_long(zsize) : 4,
+                };
+                ei++;
+            } ZEND_HASH_FOREACH_END();
+            spec_info.mapEntryCount = ei;
+            spec_info.pMapEntries = spec_entries;
+            spec_info.dataSize = Z_STRLEN_P(zdata);
+            spec_info.pData = Z_STRVAL_P(zdata);
+        }
+    }
 
     VkComputePipelineCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -65,6 +109,7 @@ PHP_METHOD(VkPipeline, createCompute) {
             .stage = VK_SHADER_STAGE_COMPUTE_BIT,
             .module = shader->shader_module,
             .pName = entry_point ? ZSTR_VAL(entry_point) : "main",
+            .pSpecializationInfo = spec_entries ? &spec_info : NULL,
         },
         .layout = layout->layout,
     };
@@ -73,7 +118,8 @@ PHP_METHOD(VkPipeline, createCompute) {
     vk_pipeline_object *intern = VK_OBJ(vk_pipeline_object, Z_OBJ_P(return_value));
     ZVAL_COPY(&intern->device_zval, device_zval);
 
-    VkResult result = vkCreateComputePipelines(dev->device, VK_NULL_HANDLE, 1, &create_info, NULL, &intern->pipeline);
+    VkResult result = vkCreateComputePipelines(dev->device, vk_cache, 1, &create_info, NULL, &intern->pipeline);
+    if (spec_entries) efree(spec_entries);
     if (result != VK_SUCCESS) {
         vk_throw_exception(result, "Failed to create compute pipeline");
     }
@@ -240,10 +286,13 @@ PHP_METHOD(VkPipeline, createGraphics) {
     };
 
     /* Multisampling */
+    zval *zsamples = zend_hash_str_find(config, "samples", sizeof("samples") - 1);
+    zval *zsample_shading = zend_hash_str_find(config, "sampleShading", sizeof("sampleShading") - 1);
     VkPipelineMultisampleStateCreateInfo multisampling = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .sampleShadingEnable = VK_FALSE,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable = zsample_shading ? VK_TRUE : VK_FALSE,
+        .rasterizationSamples = zsamples ? (VkSampleCountFlagBits)zval_get_long(zsamples) : VK_SAMPLE_COUNT_1_BIT,
+        .minSampleShading = zsample_shading ? (float)zval_get_double(zsample_shading) : 1.0f,
     };
 
     /* Depth stencil */
@@ -297,7 +346,15 @@ PHP_METHOD(VkPipeline, createGraphics) {
     vk_pipeline_object *intern = VK_OBJ(vk_pipeline_object, Z_OBJ_P(return_value));
     ZVAL_COPY(&intern->device_zval, device_zval);
 
-    VkResult result = vkCreateGraphicsPipelines(dev->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &intern->pipeline);
+    /* Pipeline cache */
+    VkPipelineCache vk_cache = VK_NULL_HANDLE;
+    zval *zcache = zend_hash_str_find(config, "cache", sizeof("cache") - 1);
+    if (zcache && Z_TYPE_P(zcache) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zcache), vk_pipeline_cache_ce)) {
+        vk_pipeline_cache_object *cache = VK_OBJ(vk_pipeline_cache_object, Z_OBJ_P(zcache));
+        vk_cache = cache->pipeline_cache;
+    }
+
+    VkResult result = vkCreateGraphicsPipelines(dev->device, vk_cache, 1, &pipeline_info, NULL, &intern->pipeline);
 
     if (vb_descs) efree(vb_descs);
     if (va_descs) efree(va_descs);
