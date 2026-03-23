@@ -959,6 +959,95 @@ PHP_METHOD(VkCommandBuffer, updateBuffer) {
         (VkDeviceSize)offset, (VkDeviceSize)ZSTR_LEN(data), ZSTR_VAL(data));
 }
 
+/* ---- Debug Labels (VK_EXT_debug_utils) ---- */
+
+/* Vk\CommandBuffer::beginDebugLabel(string $name, float $r = 1, float $g = 1, float $b = 1, float $a = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_beginDebugLabel, 0, 1, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, r, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, g, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, b, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, a, IS_DOUBLE, 0, "1.0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, beginDebugLabel) {
+    zend_string *name;
+    double r = 1, g = 1, b = 1, a = 1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 5)
+        Z_PARAM_STR(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(r) Z_PARAM_DOUBLE(g) Z_PARAM_DOUBLE(b) Z_PARAM_DOUBLE(a)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+
+    /* Get function pointer dynamically (extension function) */
+    PFN_vkCmdBeginDebugUtilsLabelEXT func =
+        (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdBeginDebugUtilsLabelEXT");
+    if (!func) return; /* Silently skip if extension not loaded */
+
+    VkDebugUtilsLabelEXT label = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+        .pLabelName = ZSTR_VAL(name),
+        .color = {(float)r, (float)g, (float)b, (float)a},
+    };
+    func(intern->command_buffer, &label);
+}
+
+/* Vk\CommandBuffer::endDebugLabel(): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_endDebugLabel, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, endDebugLabel) {
+    ZEND_PARSE_PARAMETERS_NONE();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+
+    PFN_vkCmdEndDebugUtilsLabelEXT func =
+        (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdEndDebugUtilsLabelEXT");
+    if (!func) return;
+    func(intern->command_buffer);
+}
+
+/* Vk\CommandBuffer::insertDebugLabel(string $name, float $r = 1, float $g = 1, float $b = 1, float $a = 1): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_insertDebugLabel, 0, 1, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, r, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, g, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, b, IS_DOUBLE, 0, "1.0")
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, a, IS_DOUBLE, 0, "1.0")
+ZEND_END_ARG_INFO()
+
+PHP_METHOD(VkCommandBuffer, insertDebugLabel) {
+    zend_string *name;
+    double r = 1, g = 1, b = 1, a = 1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 5)
+        Z_PARAM_STR(name)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_DOUBLE(r) Z_PARAM_DOUBLE(g) Z_PARAM_DOUBLE(b) Z_PARAM_DOUBLE(a)
+    ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+
+    PFN_vkCmdInsertDebugUtilsLabelEXT func =
+        (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetDeviceProcAddr(
+            VK_OBJ_FROM_ZVAL(vk_device_object, &intern->device_zval)->device,
+            "vkCmdInsertDebugUtilsLabelEXT");
+    if (!func) return;
+
+    VkDebugUtilsLabelEXT label = {
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+        .pLabelName = ZSTR_VAL(name),
+        .color = {(float)r, (float)g, (float)b, (float)a},
+    };
+    func(intern->command_buffer, &label);
+}
+
 /* ---- Dynamic States ---- */
 
 /* setLineWidth(float $lineWidth): void */
@@ -1169,6 +1258,9 @@ static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, endQuery,           arginfo_vk_cb_endQuery,           ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, writeTimestamp,     arginfo_vk_cb_writeTimestamp,     ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, resetQueryPool,     arginfo_vk_cb_resetQueryPool,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, beginDebugLabel,   arginfo_vk_cb_beginDebugLabel,    ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, endDebugLabel,     arginfo_vk_cb_endDebugLabel,      ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, insertDebugLabel,  arginfo_vk_cb_insertDebugLabel,   ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
