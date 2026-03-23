@@ -44,7 +44,7 @@ if test "$PHP_VULKAN" != "no"; then
   PHP_EVAL_LIBLINE($VULKAN_LIBS, VULKAN_SHARED_LIBADD)
   PHP_SUBST(VULKAN_SHARED_LIBADD)
 
-  VULKAN_SOURCES="src/vulkan.c src/vk_instance.c src/vk_physical_device.c src/vk_device.c src/vk_queue.c src/vk_buffer.c src/vk_device_memory.c src/vk_command_pool.c src/vk_command_buffer.c src/vk_shader_module.c src/vk_descriptor_set_layout.c src/vk_descriptor_pool.c src/vk_descriptor_set.c src/vk_pipeline_layout.c src/vk_pipeline.c src/vk_render_pass.c src/vk_framebuffer.c src/vk_image.c src/vk_image_view.c src/vk_sampler.c src/vk_fence.c src/vk_semaphore.c src/vk_swapchain.c src/vk_surface.c src/vk_enums.c"
+  VULKAN_SOURCES="src/vulkan.c src/vk_instance.c src/vk_physical_device.c src/vk_device.c src/vk_queue.c src/vk_buffer.c src/vk_device_memory.c src/vk_command_pool.c src/vk_command_buffer.c src/vk_shader_module.c src/vk_descriptor_set_layout.c src/vk_descriptor_pool.c src/vk_descriptor_set.c src/vk_pipeline_layout.c src/vk_pipeline.c src/vk_render_pass.c src/vk_framebuffer.c src/vk_image.c src/vk_image_view.c src/vk_sampler.c src/vk_fence.c src/vk_semaphore.c src/vk_swapchain.c src/vk_surface.c src/vk_enums.c src/vk_pipeline_cache.c src/vk_query_pool.c src/vk_event.c"
 
   PHP_NEW_EXTENSION(vulkan, $VULKAN_SOURCES, $ext_shared)
 fi

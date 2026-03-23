@@ -959,6 +959,177 @@ PHP_METHOD(VkCommandBuffer, updateBuffer) {
         (VkDeviceSize)offset, (VkDeviceSize)ZSTR_LEN(data), ZSTR_VAL(data));
 }
 
+/* ---- Dynamic States ---- */
+
+/* setLineWidth(float $lineWidth): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setLineWidth, 0, 1, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, lineWidth, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setLineWidth) {
+    double lw;
+    ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_DOUBLE(lw) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetLineWidth(intern->command_buffer, (float)lw);
+}
+
+/* setDepthBias(float $constantFactor, float $clamp, float $slopeFactor): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setDepthBias, 0, 3, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, constantFactor, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, clamp, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, slopeFactor, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setDepthBias) {
+    double cf, clamp, sf;
+    ZEND_PARSE_PARAMETERS_START(3, 3) Z_PARAM_DOUBLE(cf) Z_PARAM_DOUBLE(clamp) Z_PARAM_DOUBLE(sf) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetDepthBias(intern->command_buffer, (float)cf, (float)clamp, (float)sf);
+}
+
+/* setBlendConstants(float $r, float $g, float $b, float $a): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setBlendConstants, 0, 4, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, r, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, g, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, b, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, a, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setBlendConstants) {
+    double r, g, b, a;
+    ZEND_PARSE_PARAMETERS_START(4, 4) Z_PARAM_DOUBLE(r) Z_PARAM_DOUBLE(g) Z_PARAM_DOUBLE(b) Z_PARAM_DOUBLE(a) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    float bc[4] = {(float)r, (float)g, (float)b, (float)a};
+    vkCmdSetBlendConstants(intern->command_buffer, bc);
+}
+
+/* setDepthBounds(float $min, float $max): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setDepthBounds, 0, 2, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, min, IS_DOUBLE, 0)
+    ZEND_ARG_TYPE_INFO(0, max, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setDepthBounds) {
+    double min_d, max_d;
+    ZEND_PARSE_PARAMETERS_START(2, 2) Z_PARAM_DOUBLE(min_d) Z_PARAM_DOUBLE(max_d) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetDepthBounds(intern->command_buffer, (float)min_d, (float)max_d);
+}
+
+/* setStencilCompareMask(int $faceMask, int $compareMask): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setStencilCompareMask, 0, 2, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, faceMask, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, compareMask, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setStencilCompareMask) {
+    zend_long face, mask;
+    ZEND_PARSE_PARAMETERS_START(2, 2) Z_PARAM_LONG(face) Z_PARAM_LONG(mask) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetStencilCompareMask(intern->command_buffer, (VkStencilFaceFlags)face, (uint32_t)mask);
+}
+
+/* setStencilWriteMask(int $faceMask, int $writeMask): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setStencilWriteMask, 0, 2, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, faceMask, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, writeMask, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setStencilWriteMask) {
+    zend_long face, mask;
+    ZEND_PARSE_PARAMETERS_START(2, 2) Z_PARAM_LONG(face) Z_PARAM_LONG(mask) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetStencilWriteMask(intern->command_buffer, (VkStencilFaceFlags)face, (uint32_t)mask);
+}
+
+/* setStencilReference(int $faceMask, int $reference): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_setStencilReference, 0, 2, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, faceMask, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, reference, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, setStencilReference) {
+    zend_long face, ref;
+    ZEND_PARSE_PARAMETERS_START(2, 2) Z_PARAM_LONG(face) Z_PARAM_LONG(ref) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vkCmdSetStencilReference(intern->command_buffer, (VkStencilFaceFlags)face, (uint32_t)ref);
+}
+
+/* ---- Secondary Command Buffers ---- */
+
+/* executeCommands(array<Vk\CommandBuffer> $commandBuffers): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_executeCommands, 0, 1, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, commandBuffers, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, executeCommands) {
+    HashTable *cmd_buffers;
+    ZEND_PARSE_PARAMETERS_START(1, 1) Z_PARAM_ARRAY_HT(cmd_buffers) ZEND_PARSE_PARAMETERS_END();
+
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    uint32_t count = zend_hash_num_elements(cmd_buffers);
+    VkCommandBuffer *cbs = ecalloc(count, sizeof(VkCommandBuffer));
+    zval *zv;
+    uint32_t idx = 0;
+    ZEND_HASH_FOREACH_VAL(cmd_buffers, zv) {
+        if (Z_TYPE_P(zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zv), vk_command_buffer_ce)) {
+            vk_command_buffer_object *cb = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(zv));
+            cbs[idx++] = cb->command_buffer;
+        }
+    } ZEND_HASH_FOREACH_END();
+    vkCmdExecuteCommands(intern->command_buffer, idx, cbs);
+    efree(cbs);
+}
+
+/* ---- Query Commands ---- */
+
+/* beginQuery(Vk\QueryPool $queryPool, int $query, int $flags = 0): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_beginQuery, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, queryPool, Vk\\QueryPool, 0)
+    ZEND_ARG_TYPE_INFO(0, query, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, beginQuery) {
+    zval *qp_zval; zend_long query, flags = 0;
+    ZEND_PARSE_PARAMETERS_START(2, 3) Z_PARAM_OBJECT_OF_CLASS(qp_zval, vk_query_pool_ce) Z_PARAM_LONG(query) Z_PARAM_OPTIONAL Z_PARAM_LONG(flags) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_query_pool_object *qp = VK_OBJ(vk_query_pool_object, Z_OBJ_P(qp_zval));
+    vkCmdBeginQuery(intern->command_buffer, qp->query_pool, (uint32_t)query, (VkQueryControlFlags)flags);
+}
+
+/* endQuery(Vk\QueryPool $queryPool, int $query): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_endQuery, 0, 2, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, queryPool, Vk\\QueryPool, 0)
+    ZEND_ARG_TYPE_INFO(0, query, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, endQuery) {
+    zval *qp_zval; zend_long query;
+    ZEND_PARSE_PARAMETERS_START(2, 2) Z_PARAM_OBJECT_OF_CLASS(qp_zval, vk_query_pool_ce) Z_PARAM_LONG(query) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_query_pool_object *qp = VK_OBJ(vk_query_pool_object, Z_OBJ_P(qp_zval));
+    vkCmdEndQuery(intern->command_buffer, qp->query_pool, (uint32_t)query);
+}
+
+/* writeTimestamp(int $pipelineStage, Vk\QueryPool $queryPool, int $query): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_writeTimestamp, 0, 3, IS_VOID, 0)
+    ZEND_ARG_TYPE_INFO(0, pipelineStage, IS_LONG, 0)
+    ZEND_ARG_OBJ_INFO(0, queryPool, Vk\\QueryPool, 0)
+    ZEND_ARG_TYPE_INFO(0, query, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, writeTimestamp) {
+    zend_long stage; zval *qp_zval; zend_long query;
+    ZEND_PARSE_PARAMETERS_START(3, 3) Z_PARAM_LONG(stage) Z_PARAM_OBJECT_OF_CLASS(qp_zval, vk_query_pool_ce) Z_PARAM_LONG(query) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_query_pool_object *qp = VK_OBJ(vk_query_pool_object, Z_OBJ_P(qp_zval));
+    vkCmdWriteTimestamp(intern->command_buffer, (VkPipelineStageFlagBits)stage, qp->query_pool, (uint32_t)query);
+}
+
+/* resetQueryPool(Vk\QueryPool $queryPool, int $firstQuery, int $queryCount): void */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_vk_cb_resetQueryPool, 0, 3, IS_VOID, 0)
+    ZEND_ARG_OBJ_INFO(0, queryPool, Vk\\QueryPool, 0)
+    ZEND_ARG_TYPE_INFO(0, firstQuery, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, queryCount, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+PHP_METHOD(VkCommandBuffer, resetQueryPool) {
+    zval *qp_zval; zend_long first, count;
+    ZEND_PARSE_PARAMETERS_START(3, 3) Z_PARAM_OBJECT_OF_CLASS(qp_zval, vk_query_pool_ce) Z_PARAM_LONG(first) Z_PARAM_LONG(count) ZEND_PARSE_PARAMETERS_END();
+    vk_command_buffer_object *intern = VK_OBJ(vk_command_buffer_object, Z_OBJ_P(ZEND_THIS));
+    vk_query_pool_object *qp = VK_OBJ(vk_query_pool_object, Z_OBJ_P(qp_zval));
+    vkCmdResetQueryPool(intern->command_buffer, qp->query_pool, (uint32_t)first, (uint32_t)count);
+}
+
 static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, begin,              arginfo_vk_cb_begin,              ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, end,                arginfo_vk_cb_end,                ZEND_ACC_PUBLIC)
@@ -986,6 +1157,18 @@ static const zend_function_entry vk_command_buffer_methods[] = {
     PHP_ME(VkCommandBuffer, copyImage,          arginfo_vk_cb_copyImage,          ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, fillBuffer,         arginfo_vk_cb_fillBuffer,         ZEND_ACC_PUBLIC)
     PHP_ME(VkCommandBuffer, updateBuffer,       arginfo_vk_cb_updateBuffer,       ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setLineWidth,       arginfo_vk_cb_setLineWidth,       ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setDepthBias,       arginfo_vk_cb_setDepthBias,       ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setBlendConstants,  arginfo_vk_cb_setBlendConstants,  ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setDepthBounds,     arginfo_vk_cb_setDepthBounds,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setStencilCompareMask, arginfo_vk_cb_setStencilCompareMask, ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setStencilWriteMask,   arginfo_vk_cb_setStencilWriteMask,   ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, setStencilReference,   arginfo_vk_cb_setStencilReference,   ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, executeCommands,    arginfo_vk_cb_executeCommands,    ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, beginQuery,         arginfo_vk_cb_beginQuery,         ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, endQuery,           arginfo_vk_cb_endQuery,           ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, writeTimestamp,     arginfo_vk_cb_writeTimestamp,     ZEND_ACC_PUBLIC)
+    PHP_ME(VkCommandBuffer, resetQueryPool,     arginfo_vk_cb_resetQueryPool,     ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 

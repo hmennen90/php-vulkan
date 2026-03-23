@@ -42,6 +42,9 @@ if (PHP_VULKAN != "no") {
             src\\vk_swapchain.c \
             src\\vk_surface.c \
             src\\vk_enums.c \
+            src\\vk_pipeline_cache.c \
+            src\\vk_query_pool.c \
+            src\\vk_event.c \
         ", true);
 
         AC_DEFINE("HAVE_VULKAN", 1, "Vulkan support");

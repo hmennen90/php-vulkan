@@ -171,6 +171,50 @@ void php_vk_enums_register(void) {
     zend_declare_class_constant_long(vk_constants_ce, "PRESENT_MODE_FIFO", sizeof("PRESENT_MODE_FIFO") - 1, VK_PRESENT_MODE_FIFO_KHR);
     zend_declare_class_constant_long(vk_constants_ce, "PRESENT_MODE_FIFO_RELAXED", sizeof("PRESENT_MODE_FIFO_RELAXED") - 1, VK_PRESENT_MODE_FIFO_RELAXED_KHR);
 
+    /* ---- VkQueryType ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_TYPE_OCCLUSION", sizeof("QUERY_TYPE_OCCLUSION") - 1, VK_QUERY_TYPE_OCCLUSION);
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_TYPE_PIPELINE_STATISTICS", sizeof("QUERY_TYPE_PIPELINE_STATISTICS") - 1, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_TYPE_TIMESTAMP", sizeof("QUERY_TYPE_TIMESTAMP") - 1, VK_QUERY_TYPE_TIMESTAMP);
+
+    /* ---- VkQueryResultFlagBits ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_RESULT_64", sizeof("QUERY_RESULT_64") - 1, VK_QUERY_RESULT_64_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_RESULT_WAIT", sizeof("QUERY_RESULT_WAIT") - 1, VK_QUERY_RESULT_WAIT_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "QUERY_RESULT_WITH_AVAILABILITY", sizeof("QUERY_RESULT_WITH_AVAILABILITY") - 1, VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+
+    /* ---- VkStencilFaceFlagBits ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "STENCIL_FACE_FRONT", sizeof("STENCIL_FACE_FRONT") - 1, VK_STENCIL_FACE_FRONT_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "STENCIL_FACE_BACK", sizeof("STENCIL_FACE_BACK") - 1, VK_STENCIL_FACE_BACK_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "STENCIL_FACE_FRONT_AND_BACK", sizeof("STENCIL_FACE_FRONT_AND_BACK") - 1, VK_STENCIL_FACE_FRONT_AND_BACK);
+
+    /* ---- VkDynamicState ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_VIEWPORT", sizeof("DYNAMIC_STATE_VIEWPORT") - 1, VK_DYNAMIC_STATE_VIEWPORT);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_SCISSOR", sizeof("DYNAMIC_STATE_SCISSOR") - 1, VK_DYNAMIC_STATE_SCISSOR);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_LINE_WIDTH", sizeof("DYNAMIC_STATE_LINE_WIDTH") - 1, VK_DYNAMIC_STATE_LINE_WIDTH);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_DEPTH_BIAS", sizeof("DYNAMIC_STATE_DEPTH_BIAS") - 1, VK_DYNAMIC_STATE_DEPTH_BIAS);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_BLEND_CONSTANTS", sizeof("DYNAMIC_STATE_BLEND_CONSTANTS") - 1, VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_DEPTH_BOUNDS", sizeof("DYNAMIC_STATE_DEPTH_BOUNDS") - 1, VK_DYNAMIC_STATE_DEPTH_BOUNDS);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_STENCIL_COMPARE_MASK", sizeof("DYNAMIC_STATE_STENCIL_COMPARE_MASK") - 1, VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_STENCIL_WRITE_MASK", sizeof("DYNAMIC_STATE_STENCIL_WRITE_MASK") - 1, VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+    zend_declare_class_constant_long(vk_constants_ce, "DYNAMIC_STATE_STENCIL_REFERENCE", sizeof("DYNAMIC_STATE_STENCIL_REFERENCE") - 1, VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+
+    /* ---- VkSampleCountFlagBits ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "SAMPLE_COUNT_1", sizeof("SAMPLE_COUNT_1") - 1, VK_SAMPLE_COUNT_1_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "SAMPLE_COUNT_2", sizeof("SAMPLE_COUNT_2") - 1, VK_SAMPLE_COUNT_2_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "SAMPLE_COUNT_4", sizeof("SAMPLE_COUNT_4") - 1, VK_SAMPLE_COUNT_4_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "SAMPLE_COUNT_8", sizeof("SAMPLE_COUNT_8") - 1, VK_SAMPLE_COUNT_8_BIT);
+    zend_declare_class_constant_long(vk_constants_ce, "SAMPLE_COUNT_16", sizeof("SAMPLE_COUNT_16") - 1, VK_SAMPLE_COUNT_16_BIT);
+
+    /* ---- VkSubpassExternal ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "SUBPASS_EXTERNAL", sizeof("SUBPASS_EXTERNAL") - 1, VK_SUBPASS_EXTERNAL);
+
+    /* ---- VkVertexInputRate ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "VERTEX_INPUT_RATE_VERTEX", sizeof("VERTEX_INPUT_RATE_VERTEX") - 1, VK_VERTEX_INPUT_RATE_VERTEX);
+    zend_declare_class_constant_long(vk_constants_ce, "VERTEX_INPUT_RATE_INSTANCE", sizeof("VERTEX_INPUT_RATE_INSTANCE") - 1, VK_VERTEX_INPUT_RATE_INSTANCE);
+
+    /* ---- VkSharingMode ---- */
+    zend_declare_class_constant_long(vk_constants_ce, "SHARING_MODE_EXCLUSIVE", sizeof("SHARING_MODE_EXCLUSIVE") - 1, VK_SHARING_MODE_EXCLUSIVE);
+    zend_declare_class_constant_long(vk_constants_ce, "SHARING_MODE_CONCURRENT", sizeof("SHARING_MODE_CONCURRENT") - 1, VK_SHARING_MODE_CONCURRENT);
+
     /* ---- Vulkan API version helpers ---- */
     zend_declare_class_constant_long(vk_constants_ce, "API_VERSION_1_0", sizeof("API_VERSION_1_0") - 1, VK_API_VERSION_1_0);
     zend_declare_class_constant_long(vk_constants_ce, "API_VERSION_1_1", sizeof("API_VERSION_1_1") - 1, VK_API_VERSION_1_1);

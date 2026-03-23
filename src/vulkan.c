@@ -107,6 +107,9 @@ PHP_MINIT_FUNCTION(vulkan) {
     php_vk_swapchain_register();
     php_vk_surface_register();
     php_vk_enums_register();
+    php_vk_pipeline_cache_register();
+    php_vk_query_pool_register();
+    php_vk_event_register();
 
     return SUCCESS;
 }

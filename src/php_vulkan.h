@@ -58,6 +58,9 @@ extern zend_class_entry *vk_fence_ce;
 extern zend_class_entry *vk_semaphore_ce;
 extern zend_class_entry *vk_swapchain_ce;
 extern zend_class_entry *vk_surface_ce;
+extern zend_class_entry *vk_pipeline_cache_ce;
+extern zend_class_entry *vk_query_pool_ce;
+extern zend_class_entry *vk_event_ce;
 
 /* Exception */
 extern zend_class_entry *vk_vulkan_exception_ce;
@@ -215,6 +218,25 @@ typedef struct _vk_surface_object {
     zend_object  std;
 } vk_surface_object;
 
+typedef struct _vk_pipeline_cache_object {
+    VkPipelineCache pipeline_cache;
+    zval            device_zval;
+    zend_object     std;
+} vk_pipeline_cache_object;
+
+typedef struct _vk_query_pool_object {
+    VkQueryPool query_pool;
+    uint32_t    query_count;
+    zval        device_zval;
+    zend_object std;
+} vk_query_pool_object;
+
+typedef struct _vk_event_object {
+    VkEvent     event;
+    zval        device_zval;
+    zend_object std;
+} vk_event_object;
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -262,5 +284,8 @@ void php_vk_semaphore_register(void);
 void php_vk_swapchain_register(void);
 void php_vk_surface_register(void);
 void php_vk_enums_register(void);
+void php_vk_pipeline_cache_register(void);
+void php_vk_query_pool_register(void);
+void php_vk_event_register(void);
 
 #endif /* PHP_VULKAN_H */
