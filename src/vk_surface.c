@@ -16,11 +16,28 @@
 /*  php-glfw interop                                                    */
 /*  phpglfw_glfwwindow_ce and phpglfw_glfwwindowptr_from_zval_ptr are  */
 /*  exported symbols from the php-glfw extension (phpgl/php-glfw).     */
-/*  We resolve them at runtime to avoid a hard compile-time dependency. */
+/*  We resolve them lazily via dlsym to avoid a hard link dependency,   */
+/*  allowing the extension to load even when php-glfw is absent.        */
 /* ------------------------------------------------------------------ */
 
-extern zend_class_entry *phpglfw_glfwwindow_ce;
-extern GLFWwindow *phpglfw_glfwwindowptr_from_zval_ptr(zval *zp);
+#include <dlfcn.h>
+
+static zend_class_entry **phpglfw_glfwwindow_ce_ptr = NULL;
+static GLFWwindow *(*phpglfw_glfwwindowptr_from_zval_ptr_fn)(zval *) = NULL;
+static zend_bool phpglfw_resolved = 0;
+
+static zend_bool vk_surface_resolve_phpglfw(void) {
+    if (phpglfw_resolved) {
+        return phpglfw_glfwwindow_ce_ptr != NULL;
+    }
+    phpglfw_resolved = 1;
+
+    phpglfw_glfwwindow_ce_ptr = (zend_class_entry **)dlsym(RTLD_DEFAULT, "phpglfw_glfwwindow_ce");
+    phpglfw_glfwwindowptr_from_zval_ptr_fn =
+        (GLFWwindow *(*)(zval *))dlsym(RTLD_DEFAULT, "phpglfw_glfwwindowptr_from_zval_ptr");
+
+    return phpglfw_glfwwindow_ce_ptr != NULL && phpglfw_glfwwindowptr_from_zval_ptr_fn != NULL;
+}
 
 zend_class_entry *vk_surface_ce;
 static zend_object_handlers vk_surface_handlers;
@@ -59,16 +76,22 @@ ZEND_END_ARG_INFO()
 PHP_METHOD(VkSurface, __construct) {
     zval *instance_zval, *window_zval;
 
+    if (!vk_surface_resolve_phpglfw()) {
+        zend_throw_exception(vk_vulkan_exception_ce,
+            "Vk\\Surface requires the php-glfw extension (phpgl/php-glfw) to be loaded", 0);
+        return;
+    }
+
     ZEND_PARSE_PARAMETERS_START(2, 2)
         Z_PARAM_OBJECT_OF_CLASS(instance_zval, vk_instance_ce)
-        Z_PARAM_OBJECT_OF_CLASS(window_zval, phpglfw_glfwwindow_ce)
+        Z_PARAM_OBJECT_OF_CLASS(window_zval, *phpglfw_glfwwindow_ce_ptr)
     ZEND_PARSE_PARAMETERS_END();
 
     vk_surface_object *intern = VK_OBJ(vk_surface_object, Z_OBJ_P(ZEND_THIS));
     vk_instance_object *inst = VK_OBJ(vk_instance_object, Z_OBJ_P(instance_zval));
 
     /* Extract the native GLFWwindow* from the php-glfw object */
-    GLFWwindow *glfw_window = phpglfw_glfwwindowptr_from_zval_ptr(window_zval);
+    GLFWwindow *glfw_window = phpglfw_glfwwindowptr_from_zval_ptr_fn(window_zval);
     if (!glfw_window) {
         zend_throw_exception(vk_vulkan_exception_ce,
             "GLFWwindow object does not contain a valid window pointer", 0);
